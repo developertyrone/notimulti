@@ -1,0 +1,4 @@
+--- SPECIFY ----
+
+Build an application that can help me to serve as a centralized notification server for all of my applications, use REST as the interface. the notification server will support different notification provider which added from time to time, so give me the flexibility to add more type in the future. Support "Telegram" and "Email" as notification provider for now. we can create multiple instances of same notification provider. configuration will be setup by a configuration file in a specific folder, the notification server will  dynamically load/fetch and reflect the existing settings or new settings.
+the notification will have a simple UI with read only funcationalilty to reflect the latest settings of the server.
