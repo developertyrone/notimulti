@@ -1,0 +1,11 @@
+# Binaries
+*.exe
+*.db
+*.sqlite
+
+# Environment
+.env
+
+# Config files with secrets
+configs/*.json
+!configs/.gitkeep

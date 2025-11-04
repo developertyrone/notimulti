@@ -23,25 +23,25 @@ Tasks are organized by implementation phase, with each task linked to user stori
 
 ### Backend Setup
 
-- [ ] [T001] [P] Initialize Go module in `backend/` directory with `go mod init github.com/developertyrone/notimulti`
-- [ ] [T002] [P] Create directory structure: `backend/cmd/server/`, `backend/internal/{config,providers,api,storage,logging}/`, `backend/tests/{contract,integration,unit}/`, `backend/configs/`
-- [ ] [T003] Install Go dependencies: `gin-gonic/gin`, `fsnotify/fsnotify`, `go-telegram-bot-api/telegram-bot-api/v5`, `gomail.v2`, `mattn/go-sqlite3`, add to `go.mod`
-- [ ] [T004] [P] Create `.gitignore` in `backend/` with patterns: `*.db`, `*.exe`, `*.env`, `configs/*.json` (preserve configs/ directory with `.gitkeep`)
-- [ ] [T005] [P] Create environment file template `backend/.env.example` with variables: `LOG_LEVEL`, `LOG_FORMAT`, `CONFIG_DIR`, `DB_PATH`, `SERVER_PORT`
+- [x] [T001] [P] Initialize Go module in `backend/` directory with `go mod init github.com/developertyrone/notimulti`
+- [x] [T002] [P] Create directory structure: `backend/cmd/server/`, `backend/internal/{config,providers,api,storage,logging}/`, `backend/tests/{contract,integration,unit}/`, `backend/configs/`
+- [x] [T003] Install Go dependencies: `gin-gonic/gin`, `fsnotify/fsnotify`, `go-telegram-bot-api/telegram-bot-api/v5`, `gomail.v2`, `mattn/go-sqlite3`, add to `go.mod`
+- [x] [T004] [P] Create `.gitignore` in `backend/` with patterns: `*.db`, `*.exe`, `*.env`, `configs/*.json` (preserve configs/ directory with `.gitkeep`)
+- [x] [T005] [P] Create environment file template `backend/.env.example` with variables: `LOG_LEVEL`, `LOG_FORMAT`, `CONFIG_DIR`, `DB_PATH`, `SERVER_PORT`
 
 ### Frontend Setup
 
-- [ ] [T006] [P] Initialize Vite Vue 3 project in `frontend/` directory with `npm create vite@latest . -- --template vue`
-- [ ] [T007] [P] Create directory structure: `frontend/src/{components,views,services}/`, `frontend/tests/unit/`
-- [ ] [T008] Install frontend dependencies: `vue@^3.3.0`, `tailwindcss@^3.3.0`, `autoprefixer`, `postcss`, `vite@^5.0.0`, `vitest@^1.0.0`, `@vue/test-utils@^2.4.0` via npm
-- [ ] [T009] Initialize Tailwind CSS with `npx tailwindcss init -p`, configure `tailwind.config.js` with content paths: `./index.html`, `./src/**/*.{vue,js,ts}`
-- [ ] [T010] [P] Create Tailwind entry point in `frontend/src/assets/tailwind.css` with `@tailwind` directives, import in `main.ts`
+- [x] [T006] [P] Initialize Vite Vue 3 project in `frontend/` directory with `npm create vite@latest . -- --template vue`
+- [x] [T007] [P] Create directory structure: `frontend/src/{components,views,services}/`, `frontend/tests/unit/`
+- [x] [T008] Install frontend dependencies: `vue@^3.3.0`, `tailwindcss@^3.3.0`, `autoprefixer`, `postcss`, `vite@^5.0.0`, `vitest@^1.0.0`, `@vue/test-utils@^2.4.0` via npm
+- [x] [T009] Initialize Tailwind CSS with `npx tailwindcss init -p`, configure `tailwind.config.js` with content paths: `./index.html`, `./src/**/*.{vue,js,ts}`
+- [x] [T010] [P] Create Tailwind entry point in `frontend/src/assets/tailwind.css` with `@tailwind` directives, import in `main.ts`
 
 ### Development Environment
 
-- [ ] [T011] [P] Configure Vitest in `frontend/vite.config.ts` with test globals, Vue plugin, jsdom environment
-- [ ] [T012] [P] Create backend test helper file `backend/tests/testhelpers/helpers.go` with mock provider factory and test database setup
-- [ ] [T013] [P] Create GitHub Actions workflow `.github/workflows/ci.yml` for running Go tests, frontend tests, and linting on push/PR
+- [x] [T011] [P] Configure Vitest in `frontend/vite.config.ts` with test globals, Vue plugin, jsdom environment
+- [x] [T012] [P] Create backend test helper file `backend/tests/testhelpers/helpers.go` with mock provider factory and test database setup
+- [x] [T013] [P] Create GitHub Actions workflow `.github/workflows/ci.yml` for running Go tests, frontend tests, and linting on push/PR
 
 ---
 
@@ -57,10 +57,10 @@ Tasks are organized by implementation phase, with each task linked to user stori
 
 ### Configuration Management
 
-- [ ] [T017] Define configuration types in `backend/internal/config/types.go`: `ProviderConfig` struct (id, type, enabled, config), `TelegramConfig` struct (bot_token, default_chat_id, parse_mode, timeout), `EmailConfig` struct (smtp_host, port, username, password, from_address, use_tls, timeout)
-- [ ] [T018] Implement configuration loader in `backend/internal/config/loader.go`: Read JSON files from `CONFIG_DIR`, parse and validate provider configs, return `ProviderConfig` slice with validation errors for malformed files
-- [ ] [T019] Implement configuration validation in `backend/internal/config/validation.go`: Validate required fields, check ID uniqueness, validate format (email addresses, Telegram chat IDs), enforce ID pattern `^[a-z0-9-]+$`
-- [ ] [T020] [P] Write unit tests for config loader in `backend/tests/unit/config_test.go`: Test JSON parsing, validation rules (missing fields, invalid formats, duplicate IDs), error handling for malformed files
+- [x] [T017] Define configuration types in `backend/internal/config/types.go`: `ProviderConfig` struct (id, type, enabled, config), `TelegramConfig` struct (bot_token, default_chat_id, parse_mode, timeout), `EmailConfig` struct (smtp_host, port, username, password, from_address, use_tls, timeout)
+- [x] [T018] Implement configuration loader in `backend/internal/config/loader.go`: Read JSON files from `CONFIG_DIR`, parse and validate provider configs, return `ProviderConfig` slice with validation errors for malformed files
+- [x] [T019] Implement configuration validation in `backend/internal/config/validation.go`: Validate required fields, check ID uniqueness, validate format (email addresses, Telegram chat IDs), enforce ID pattern `^[a-z0-9-]+$`
+- [x] [T020] [P] Write unit tests for config loader in `backend/tests/unit/config_test.go`: Test JSON parsing, validation rules (missing fields, invalid formats, duplicate IDs), error handling for malformed files
 
 ### Provider Interface & Registry
 
