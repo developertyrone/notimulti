@@ -1,40 +1,49 @@
 package testhelpers
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"testing"
+
+	"github.com/developertyrone/notimulti/internal/providers"
 )
 
 // MockProvider is a simple mock implementation for testing
 type MockProvider struct {
-	ID           string
-	Type         string
-	SendFunc     func() error
-	StatusFunc   func() string
-	CloseFunc    func() error
+	IDFunc     func() string
+	TypeFunc   func() string
+	SendFunc   func(context.Context, *providers.Notification) error
+	StatusFunc func() *providers.ProviderStatus
+	CloseFunc  func() error
 }
 
-func (m *MockProvider) Send() error {
+func (m *MockProvider) Send(ctx context.Context, notification *providers.Notification) error {
 	if m.SendFunc != nil {
-		return m.SendFunc()
+		return m.SendFunc(ctx, notification)
 	}
 	return nil
 }
 
-func (m *MockProvider) GetStatus() string {
+func (m *MockProvider) GetStatus() *providers.ProviderStatus {
 	if m.StatusFunc != nil {
 		return m.StatusFunc()
 	}
-	return "active"
+	return &providers.ProviderStatus{Status: providers.StatusActive}
 }
 
 func (m *MockProvider) GetID() string {
-	return m.ID
+	if m.IDFunc != nil {
+		return m.IDFunc()
+	}
+	return ""
 }
 
 func (m *MockProvider) GetType() string {
-	return m.Type
+	if m.TypeFunc != nil {
+		return m.TypeFunc()
+	}
+	return ""
 }
 
 func (m *MockProvider) Close() error {
@@ -47,7 +56,7 @@ func (m *MockProvider) Close() error {
 // SetupTestDB creates a temporary test database
 func SetupTestDB(t *testing.T) (*sql.DB, func()) {
 	t.Helper()
-	
+
 	dbPath := t.TempDir() + "/test.db"
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {

@@ -51,9 +51,9 @@ Tasks are organized by implementation phase, with each task linked to user stori
 
 ### Logging Infrastructure
 
-- [ ] [T014] Implement structured logging setup in `backend/internal/logging/logger.go`: Initialize `log/slog` with JSON handler, environment-based log level (`LOG_LEVEL` env var), context-aware logger with request ID propagation
-- [ ] [T015] Add logging middleware in `backend/internal/api/middleware.go`: Log all HTTP requests with method/path/status/duration, generate request ID (UUID), inject logger into request context
-- [ ] [T016] [P] Write unit tests for logging utilities in `backend/tests/unit/logging_test.go`: Test log level configuration, sensitive data redaction (tokens, passwords), JSON output format
+- [x] [T014] Implement structured logging setup in `backend/internal/logging/logger.go`: Initialize `log/slog` with JSON handler, environment-based log level (`LOG_LEVEL` env var), context-aware logger with request ID propagation
+- [x] [T015] Add logging middleware in `backend/internal/api/middleware.go`: Log all HTTP requests with method/path/status/duration, generate request ID (UUID), inject logger into request context
+- [x] [T016] [P] Write unit tests for logging utilities in `backend/tests/unit/logging_test.go`: Test log level configuration, sensitive data redaction (tokens, passwords), JSON output format
 
 ### Configuration Management
 
@@ -64,10 +64,10 @@ Tasks are organized by implementation phase, with each task linked to user stori
 
 ### Provider Interface & Registry
 
-- [ ] [T021] Define Provider interface in `backend/internal/providers/provider.go`: Methods: `Send(ctx, Notification) error`, `GetStatus() ProviderStatus`, `GetID() string`, `GetType() string`, `Close() error`
-- [ ] [T022] Define shared types in `backend/internal/providers/types.go`: `Notification` struct (ID, ProviderID, Recipient, Message, Subject, Metadata, Priority, Timestamp), `ProviderStatus` struct (Status, LastUpdated, ErrorMessage, ConfigChecksum)
-- [ ] [T023] Implement provider registry in `backend/internal/providers/registry.go`: Thread-safe map (`sync.RWMutex`) for provider storage, methods: `Register(Provider)`, `Get(id) Provider`, `List() []Provider`, `Remove(id)`, atomic provider swap on config reload
-- [ ] [T024] [P] Write unit tests for provider registry in `backend/tests/unit/registry_test.go`: Test concurrent access, provider registration/retrieval/removal, thread safety with parallel goroutines
+- [x] [T021] Define Provider interface in `backend/internal/providers/provider.go`: Methods: `Send(ctx, Notification) error`, `GetStatus() ProviderStatus`, `GetID() string`, `GetType() string`, `Close() error`
+- [x] [T022] Define shared types in `backend/internal/providers/types.go`: `Notification` struct (ID, ProviderID, Recipient, Message, Subject, Metadata, Priority, Timestamp), `ProviderStatus` struct (Status, LastUpdated, ErrorMessage, ConfigChecksum)
+- [x] [T023] Implement provider registry in `backend/internal/providers/registry.go`: Thread-safe map (`sync.RWMutex`) for provider storage, methods: `Register(Provider)`, `Get(id) Provider`, `List() []Provider`, `Remove(id)`, atomic provider swap on config reload
+- [x] [T024] [P] Write unit tests for provider registry in `backend/tests/unit/registry_test.go`: Test concurrent access, provider registration/retrieval/removal, thread safety with parallel goroutines
 
 ### Database Schema
 
