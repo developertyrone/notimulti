@@ -1,0 +1,472 @@
+package unit
+
+import (
+	"database/sql"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/developertyrone/notimulti/internal/providers"
+	"github.com/developertyrone/notimulti/internal/storage"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+func setupTestDB(t *testing.T) (*sql.DB, string) {
+	dbPath := "./test_logger.db"
+	// Remove existing test database
+	os.Remove(dbPath)
+
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+
+	// Initialize schema
+	schema := `
+	CREATE TABLE IF NOT EXISTS notification_logs (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		provider_id TEXT NOT NULL,
+		provider_type TEXT NOT NULL,
+		recipient TEXT NOT NULL,
+		message TEXT NOT NULL,
+		subject TEXT,
+		metadata TEXT,
+		priority TEXT DEFAULT 'normal',
+		status TEXT NOT NULL,
+		error_message TEXT,
+		attempts INTEGER DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		delivered_at DATETIME
+	);
+	CREATE INDEX IF NOT EXISTS idx_notification_logs_provider_id ON notification_logs(provider_id);
+	CREATE INDEX IF NOT EXISTS idx_notification_logs_created_at ON notification_logs(created_at);
+	CREATE INDEX IF NOT EXISTS idx_notification_logs_status ON notification_logs(status);
+	CREATE INDEX IF NOT EXISTS idx_notification_logs_provider_type ON notification_logs(provider_type);
+	`
+
+	if _, err := db.Exec(schema); err != nil {
+		t.Fatalf("Failed to create schema: %v", err)
+	}
+
+	return db, dbPath
+}
+
+func TestNotificationLogger_LogNotification_Valid(t *testing.T) {
+	db, dbPath := setupTestDB(t)
+	defer os.Remove(dbPath)
+	defer db.Close()
+
+	logger, err := storage.NewNotificationLogger(db)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+
+	notification := &providers.Notification{
+		ID:         "test-123",
+		ProviderID: "telegram-1",
+		Recipient:  "123456789",
+		Message:    "Test message",
+		Metadata: map[string]interface{}{
+			"source": "unit-test",
+		},
+	}
+
+	err = logger.LogNotification(notification, "delivered", "", "telegram", 1)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	// Force flush to ensure record is written
+	logger.Flush()
+
+	// Verify record in database
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM notification_logs WHERE provider_id = ?", notification.ProviderID).Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query database: %v", err)
+	}
+
+	if count != 1 {
+		t.Errorf("Expected 1 record, got %d", count)
+	}
+
+	// Verify fields
+	var status, providerType, recipient, message string
+	var attempts int
+	err = db.QueryRow(
+		"SELECT status, provider_type, recipient, message, attempts FROM notification_logs WHERE provider_id = ?",
+		notification.ProviderID,
+	).Scan(&status, &providerType, &recipient, &message, &attempts)
+
+	if err != nil {
+		t.Fatalf("Failed to query notification: %v", err)
+	}
+
+	if status != "delivered" {
+		t.Errorf("Expected status 'delivered', got '%s'", status)
+	}
+	if providerType != "telegram" {
+		t.Errorf("Expected provider_type 'telegram', got '%s'", providerType)
+	}
+	if recipient != "123456789" {
+		t.Errorf("Expected recipient '123456789', got '%s'", recipient)
+	}
+	if message != "Test message" {
+		t.Errorf("Expected message 'Test message', got '%s'", message)
+	}
+	if attempts != 1 {
+		t.Errorf("Expected attempts 1, got %d", attempts)
+	}
+}
+
+func TestNotificationLogger_LogNotification_Failed(t *testing.T) {
+	db, dbPath := setupTestDB(t)
+	defer os.Remove(dbPath)
+	defer db.Close()
+
+	logger, err := storage.NewNotificationLogger(db)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+
+	notification := &providers.Notification{
+		ID:         "test-failed-123",
+		ProviderID: "email-1",
+		Recipient:  "test@example.com",
+		Message:    "Test failed message",
+	}
+
+	errorMsg := "SMTP connection failed"
+	err = logger.LogNotification(notification, "failed", errorMsg, "email", 3)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	logger.Flush()
+
+	// Verify error message and status
+	var status, storedErrorMsg string
+	var attempts int
+	err = db.QueryRow(
+		"SELECT status, error_message, attempts FROM notification_logs WHERE provider_id = ?",
+		notification.ProviderID,
+	).Scan(&status, &storedErrorMsg, &attempts)
+
+	if err != nil {
+		t.Fatalf("Failed to query notification: %v", err)
+	}
+
+	if status != "failed" {
+		t.Errorf("Expected status 'failed', got '%s'", status)
+	}
+	if storedErrorMsg != errorMsg {
+		t.Errorf("Expected error_message '%s', got '%s'", errorMsg, storedErrorMsg)
+	}
+	if attempts != 3 {
+		t.Errorf("Expected attempts 3, got %d", attempts)
+	}
+}
+
+func TestNotificationLogger_BatchingBehavior_BufferFull(t *testing.T) {
+	db, dbPath := setupTestDB(t)
+	defer os.Remove(dbPath)
+	defer db.Close()
+
+	logger, err := storage.NewNotificationLogger(db)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+
+	// Log 100 notifications to fill buffer
+	for i := 0; i < 100; i++ {
+		notification := &providers.Notification{
+			ID:         time.Now().Format("20060102150405.000000") + string(rune(i)),
+			ProviderID: "test-provider",
+			Recipient:  "test@example.com",
+			Message:    "Batch test message",
+		}
+		err = logger.LogNotification(notification, "delivered", "", "email", 1)
+		if err != nil {
+			t.Errorf("Failed to log notification %d: %v", i, err)
+		}
+	}
+
+	// Wait a bit for batch processing
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify records were flushed when buffer filled
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM notification_logs").Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query database: %v", err)
+	}
+
+	if count != 100 {
+		t.Errorf("Expected 100 records after buffer fill, got %d", count)
+	}
+}
+
+func TestNotificationLogger_BatchingBehavior_TimedFlush(t *testing.T) {
+	db, dbPath := setupTestDB(t)
+	defer os.Remove(dbPath)
+	defer db.Close()
+
+	logger, err := storage.NewNotificationLogger(db)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+
+	// Log only 10 notifications (not enough to fill buffer)
+	for i := 0; i < 10; i++ {
+		notification := &providers.Notification{
+			ID:         time.Now().Format("20060102150405.000000") + string(rune(i)),
+			ProviderID: "test-provider",
+			Recipient:  "test@example.com",
+			Message:    "Timed flush test",
+		}
+		err = logger.LogNotification(notification, "delivered", "", "email", 1)
+		if err != nil {
+			t.Errorf("Failed to log notification %d: %v", i, err)
+		}
+	}
+
+	// Wait for timed flush (5 seconds + margin)
+	time.Sleep(6 * time.Second)
+
+	// Verify records were flushed by timer
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM notification_logs").Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query database: %v", err)
+	}
+
+	if count != 10 {
+		t.Errorf("Expected 10 records after timed flush, got %d", count)
+	}
+}
+
+func TestNotificationLogger_ManualFlush(t *testing.T) {
+	db, dbPath := setupTestDB(t)
+	defer os.Remove(dbPath)
+	defer db.Close()
+
+	logger, err := storage.NewNotificationLogger(db)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+
+	// Log 5 notifications
+	for i := 0; i < 5; i++ {
+		notification := &providers.Notification{
+			ID:         time.Now().Format("20060102150405.000000") + string(rune(i)),
+			ProviderID: "test-provider",
+			Recipient:  "test@example.com",
+			Message:    "Manual flush test",
+		}
+		err = logger.LogNotification(notification, "delivered", "", "email", 1)
+		if err != nil {
+			t.Errorf("Failed to log notification %d: %v", i, err)
+		}
+	}
+
+	// Manually flush before timer
+	logger.Flush()
+
+	// Verify records were flushed immediately
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM notification_logs").Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query database: %v", err)
+	}
+
+	if count != 5 {
+		t.Errorf("Expected 5 records after manual flush, got %d", count)
+	}
+}
+
+func TestNotificationLogger_ErrorHandling_DBUnavailable(t *testing.T) {
+	db, dbPath := setupTestDB(t)
+	defer os.Remove(dbPath)
+
+	logger, err := storage.NewNotificationLogger(db)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+
+	// Close database to simulate unavailability
+	db.Close()
+
+	notification := &providers.Notification{
+		ID:         "test-error-123",
+		ProviderID: "test-provider",
+		Recipient:  "test@example.com",
+		Message:    "Error handling test",
+	}
+
+	// Should not panic or return error - graceful degradation
+	err = logger.LogNotification(notification, "delivered", "", "email", 1)
+	if err != nil {
+		t.Errorf("Expected graceful error handling, got error: %v", err)
+	}
+
+	// Flush should also handle error gracefully
+	logger.Flush()
+}
+
+func TestNotificationLogger_PreparedStatement_Reuse(t *testing.T) {
+	db, dbPath := setupTestDB(t)
+	defer os.Remove(dbPath)
+	defer db.Close()
+
+	logger, err := storage.NewNotificationLogger(db)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+
+	// Log multiple notifications to verify prepared statement works multiple times
+	for i := 0; i < 50; i++ {
+		notification := &providers.Notification{
+			ID:         time.Now().Format("20060102150405.000000") + string(rune(i)),
+			ProviderID: "test-provider",
+			Recipient:  "test@example.com",
+			Message:    "Prepared statement test",
+		}
+		err = logger.LogNotification(notification, "delivered", "", "email", 1)
+		if err != nil {
+			t.Errorf("Failed to log notification %d: %v", i, err)
+		}
+	}
+
+	logger.Flush()
+
+	// Verify all records inserted
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM notification_logs").Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query database: %v", err)
+	}
+
+	if count != 50 {
+		t.Errorf("Expected 50 records, got %d", count)
+	}
+}
+
+func TestNotificationLogger_Close_FlushesBuffer(t *testing.T) {
+	db, dbPath := setupTestDB(t)
+	defer os.Remove(dbPath)
+	defer db.Close()
+
+	logger, err := storage.NewNotificationLogger(db)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+
+	// Log 5 notifications
+	for i := 0; i < 5; i++ {
+		notification := &providers.Notification{
+			ID:         time.Now().Format("20060102150405.000000") + string(rune(i)),
+			ProviderID: "test-provider",
+			Recipient:  "test@example.com",
+			Message:    "Close flush test",
+		}
+		err = logger.LogNotification(notification, "delivered", "", "email", 1)
+		if err != nil {
+			t.Errorf("Failed to log notification %d: %v", i, err)
+		}
+	}
+
+	// Close should flush buffer
+	logger.Close()
+
+	// Verify records were flushed
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM notification_logs").Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query database: %v", err)
+	}
+
+	if count != 5 {
+		t.Errorf("Expected 5 records after close, got %d", count)
+	}
+}
+
+func TestNotificationLogger_ConcurrentWrites(t *testing.T) {
+	db, dbPath := setupTestDB(t)
+	defer os.Remove(dbPath)
+	defer db.Close()
+
+	logger, err := storage.NewNotificationLogger(db)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+
+	// Simulate concurrent writes from multiple goroutines
+	done := make(chan bool, 10)
+	for g := 0; g < 10; g++ {
+		go func(goroutineID int) {
+			for i := 0; i < 10; i++ {
+				notification := &providers.Notification{
+					ID:         time.Now().Format("20060102150405.000000") + string(rune(goroutineID*100+i)),
+					ProviderID: "test-provider",
+					Recipient:  "test@example.com",
+					Message:    "Concurrent test",
+				}
+				logger.LogNotification(notification, "delivered", "", "email", 1)
+			}
+			done <- true
+		}(g)
+	}
+
+	// Wait for all goroutines
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+
+	logger.Flush()
+
+	// Verify all records inserted
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM notification_logs").Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query database: %v", err)
+	}
+
+	if count != 100 {
+		t.Errorf("Expected 100 records from concurrent writes, got %d", count)
+	}
+}
+
+func BenchmarkNotificationLogger_LogNotification(b *testing.B) {
+	db, dbPath := setupTestDB(&testing.T{})
+	defer os.Remove(dbPath)
+	defer db.Close()
+
+	logger, err := storage.NewNotificationLogger(db)
+	if err != nil {
+		b.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+
+	notification := &providers.Notification{
+		ID:         "bench-test",
+		ProviderID: "test-provider",
+		Recipient:  "test@example.com",
+		Message:    "Benchmark test message",
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		notification.ID = time.Now().Format("20060102150405.000000") + string(rune(i))
+		logger.LogNotification(notification, "delivered", "", "email", 1)
+		if i%100 == 0 {
+			logger.Flush()
+		}
+	}
+}

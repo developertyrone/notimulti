@@ -8,9 +8,23 @@ the notification will have a simple UI with read only funcationalilty to reflect
 The application fronend uses Tailwind CSS with Vue 3 and Vite with minimal number of libraries, But again keep things as simple as possible. Backend uses GoLang with Gin as the api framework for performance and simplicity. If necessary metadata is stored in a local SQLite database.
 
 
+Use Haiku for T028-T039 (Telegram + Email providers):
+
+These are straightforward integrations
+Clear specifications in tasks.md
+Standard Go patterns
+Should work very well with Haiku
+Switch to Sonnet for T040-T047 (API + Advanced features):
+
+More complex orchestration
+Concurrency considerations
+Better handled by Sonnet's deeper reasoning
+
 --- PHASE2 ---
 notification log 
 one click button to test the provider instance
 k8s + docker compose deployment
 ci build for docker repository (keep secret in github repo)
 release notes and tags for each release in github
+
+

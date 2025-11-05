@@ -1,5 +1,4 @@
 package api
-package api
 
 import (
 	"time"
@@ -15,7 +14,7 @@ func LoggingMiddleware() gin.HandlerFunc {
 		// Generate request ID
 		requestID := uuid.New().String()
 		c.Set("request_id", requestID)
-		
+
 		// Add request ID to context
 		ctx := logging.WithRequestID(c.Request.Context(), requestID)
 		c.Request = c.Request.WithContext(ctx)

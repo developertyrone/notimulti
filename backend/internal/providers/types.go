@@ -14,6 +14,14 @@ type Notification struct {
 	Timestamp  time.Time              `json:"timestamp"`
 }
 
+// ProviderConfig represents the configuration for a provider
+type ProviderConfig struct {
+	ID       string          `json:"id"`
+	Type     string          `json:"type"` // "telegram" or "email"
+	Telegram *TelegramConfig `json:"telegram,omitempty"`
+	Email    *EmailConfig    `json:"email,omitempty"`
+}
+
 // ProviderStatus represents the current status of a provider
 type ProviderStatus struct {
 	Status         string    `json:"status"` // "active", "inactive", "error", "disabled"
@@ -36,3 +44,22 @@ const (
 	StatusError    = "error"
 	StatusDisabled = "disabled"
 )
+
+// TelegramConfig contains Telegram-specific configuration
+type TelegramConfig struct {
+	BotToken       string `json:"bot_token"`
+	DefaultChatID  string `json:"default_chat_id"`
+	ParseMode      string `json:"parse_mode,omitempty"` // HTML or Markdown
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+}
+
+// EmailConfig contains Email-specific configuration
+type EmailConfig struct {
+	Host           string `json:"host"`
+	Port           int    `json:"port"`
+	Username       string `json:"username"`
+	Password       string `json:"password"`
+	From           string `json:"from"`
+	UseTLS         bool   `json:"use_tls,omitempty"`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+}

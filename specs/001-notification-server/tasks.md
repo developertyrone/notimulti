@@ -71,9 +71,9 @@ Tasks are organized by implementation phase, with each task linked to user stori
 
 ### Database Schema
 
-- [ ] [T025] Create SQLite schema in `backend/internal/storage/schema.go`: Define `notification_logs` table DDL with columns (id, provider_id, provider_type, recipient, message, subject, metadata, priority, status, error_message, attempts, created_at, delivered_at), add indexes on provider_id, created_at, status
-- [ ] [T026] Implement database initialization in `backend/internal/storage/sqlite.go`: Open SQLite connection with WAL mode, execute schema creation, set `busy_timeout` to 5000ms, create indexes, return connection pool (1 connection)
-- [ ] [T027] [P] Write integration tests for database in `backend/tests/integration/storage_test.go`: Test schema creation, table structure validation, index creation, concurrent writes with busy timeout
+- [x] [T025] Create SQLite schema in `backend/internal/storage/schema.go`: Define `notification_logs` table DDL with columns (id, provider_id, provider_type, recipient, message, subject, metadata, priority, status, error_message, attempts, created_at, delivered_at), add indexes on provider_id, created_at, status
+- [x] [T026] Implement database initialization in `backend/internal/storage/sqlite.go`: Open SQLite connection with WAL mode, execute schema creation, set `busy_timeout` to 5000ms, create indexes, return connection pool (1 connection)
+- [x] [T027] [P] Write integration tests for database in `backend/tests/integration/storage_test.go`: Test schema creation, table structure validation, index creation, concurrent writes with busy timeout
 
 ---
 
@@ -83,41 +83,41 @@ Tasks are organized by implementation phase, with each task linked to user stori
 
 ### Telegram Provider Implementation
 
-- [ ] [T028] [US1] Implement Telegram provider in `backend/internal/providers/telegram.go`: Initialize bot API client with token, implement `Send()` method with timeout (5s) and retry logic (exponential backoff: 1s, 2s, 4s for max 3 retries on transient failures), implement `GetStatus()` to check bot connectivity, handle rate limiting (429) with exponential backoff, implement `Close()` for cleanup
-- [ ] [T029] [US1] [P] Write unit tests for Telegram provider in `backend/tests/unit/telegram_test.go`: Test Send() with mock bot API, verify error handling (invalid token, rate limits), test timeout behavior, verify retry logic with exponential backoff, verify status reporting
+- [x] [T028] [US1] Implement Telegram provider in `backend/internal/providers/telegram.go`: Initialize bot API client with token, implement `Send()` method with timeout (5s) and retry logic (exponential backoff: 1s, 2s, 4s for max 3 retries on transient failures), implement `GetStatus()` to check bot connectivity, handle rate limiting (429) with exponential backoff, implement `Close()` for cleanup
+- [x] [T029] [US1] [P] Write unit tests for Telegram provider in `backend/tests/unit/telegram_test.go`: Test Send() with mock bot API, verify error handling (invalid token, rate limits), test timeout behavior, verify retry logic with exponential backoff, verify status reporting
 - [ ] [T030] [US1] [P] Write integration tests for Telegram provider in `backend/tests/integration/telegram_test.go`: Test actual message delivery to test chat (requires `TELEGRAM_TEST_TOKEN` and `TELEGRAM_TEST_CHAT` env vars), verify Markdown/HTML parse modes, test error scenarios (invalid chat ID)
 
 ### Email Provider Implementation
 
-- [ ] [T031] [US1] Implement Email provider in `backend/internal/providers/email.go`: Initialize SMTP client with TLS configuration, implement `Send()` method with MIME message construction (gomail) and retry logic (exponential backoff: 1s, 2s, 4s for max 3 retries on transient failures), support plain text and HTML bodies, implement connection pooling, implement timeout (30s), handle SMTP errors (authentication, connection refused)
-- [ ] [T032] [US1] [P] Write unit tests for Email provider in `backend/tests/unit/email_test.go`: Test Send() with mock SMTP server, verify MIME message structure, test TLS/STARTTLS configuration, verify error handling (authentication failure), verify retry logic with exponential backoff
+- [x] [T031] [US1] Implement Email provider in `backend/internal/providers/email.go`: Initialize SMTP client with TLS configuration, implement `Send()` method with MIME message construction (gomail) and retry logic (exponential backoff: 1s, 2s, 4s for max 3 retries on transient failures), support plain text and HTML bodies, implement connection pooling, implement timeout (30s), handle SMTP errors (authentication, connection refused)
+- [x] [T032] [US1] [P] Write unit tests for Email provider in `backend/tests/unit/email_test.go`: Test Send() with mock SMTP server, verify MIME message structure, test TLS/STARTTLS configuration, verify error handling (authentication failure), verify retry logic with exponential backoff
 - [ ] [T033] [US1] [P] Write integration tests for Email provider in `backend/tests/integration/email_test.go`: Test actual email delivery to test address (requires SMTP test credentials in env vars), verify subject and body content, test attachment support (future)
 
 ### Provider Factory & Loading
 
-- [ ] [T034] [US1] Implement provider factory in `backend/internal/providers/factory.go`: Function `NewProvider(config ProviderConfig) (Provider, error)`, switch on provider type (telegram, email), initialize provider with config, return error for unknown types
-- [ ] [T035] [US1] Implement provider loader in `backend/internal/config/loader.go` (extend existing): Load all configs from directory, validate each config, call factory to create providers, register in provider registry, log errors for invalid configs but continue with valid ones
-- [ ] [T036] [US1] [P] Write unit tests for provider factory in `backend/tests/unit/factory_test.go`: Test provider creation for all types, verify error handling for invalid configs, test unknown provider type rejection
+- [x] [T034] [US1] Implement provider factory in `backend/internal/providers/factory.go`: Function `NewProvider(config ProviderConfig) (Provider, error)`, switch on provider type (telegram, email), initialize provider with config, return error for unknown types
+- [x] [T035] [US1] Implement provider loader in `backend/internal/config/loader.go` (extend existing): Load all configs from directory, validate each config, call factory to create providers, register in provider registry, log errors for invalid configs but continue with valid ones
+- [x] [T036] [US1] [P] Write unit tests for provider factory in `backend/tests/unit/factory_test.go`: Test provider creation for all types, verify error handling for invalid configs, test unknown provider type rejection
 
 ### REST API Endpoints
 
-- [ ] [T037] [US1] Implement notification handler in `backend/internal/api/handlers.go`: POST `/api/v1/notifications` endpoint, parse JSON request body, validate required fields (provider_id, recipient, message), generate notification ID (UUID), retrieve provider from registry (404 if not found), call `provider.Send()` asynchronously, return 201 with notification ID and status
-- [ ] [T038] [US1] Implement health check handler in `backend/internal/api/handlers.go`: GET `/api/v1/health` endpoint, return JSON with status="ok", version, timestamp
-- [ ] [T039] [US1] Implement request validation in `backend/internal/api/validation.go`: Validate notification request struct, check required fields, validate message length (≤4096 chars for Telegram), validate email format for email providers, validate Telegram chat ID format for Telegram providers, validate metadata structure (max 10 key-value pairs, keys ≤50 chars, values ≤200 chars), validate total email size ≤10MB, return field-level error details with specific limits exceeded
-- [ ] [T040] [US1] Setup Gin router in `backend/internal/api/routes.go`: Initialize Gin router with Release mode, add logging middleware, add CORS middleware (allow localhost:5173), register routes: POST /api/v1/notifications, GET /api/v1/health, GET /api/v1/providers, GET /api/v1/providers/:id
-- [ ] [T041] [US1] [P] Write contract tests for notification API in `backend/tests/contract/notifications_test.go`: Test POST with valid Telegram payload (verify 201, notification ID in response), test POST with valid Email payload, test POST with invalid provider_id (verify 404), test POST with missing required fields (verify 400 with field errors), test POST with message exceeding 4096 chars (verify 400 with limit details), test POST with metadata exceeding limits (verify 400), test POST with email exceeding 10MB (verify 400 with limit details)
-- [ ] [T042] [US1] [P] Write contract tests for health check in `backend/tests/contract/health_test.go`: Test GET /health returns 200, verify JSON structure (status, version, timestamp)
+- [x] [T037] [US1] Implement notification handler in `backend/internal/api/handlers.go`: POST `/api/v1/notifications` endpoint, parse JSON request body, validate required fields (provider_id, recipient, message), generate notification ID (UUID), retrieve provider from registry (404 if not found), call `provider.Send()` asynchronously, return 201 with notification ID and status
+- [x] [T038] [US1] Implement health check handler in `backend/internal/api/handlers.go`: GET `/api/v1/health` endpoint, return JSON with status="ok", version, timestamp
+- [x] [T039] [US1] Implement request validation in `backend/internal/api/validation.go`: Validate notification request struct, check required fields, validate message length (≤4096 chars for Telegram), validate email format for email providers, validate Telegram chat ID format for Telegram providers, validate metadata structure (max 10 key-value pairs, keys ≤50 chars, values ≤200 chars), validate total email size ≤10MB, return field-level error details with specific limits exceeded
+- [x] [T040] [US1] Setup Gin router in `backend/internal/api/routes.go`: Initialize Gin router with Release mode, add logging middleware, add CORS middleware (allow localhost:5173), register routes: POST /api/v1/notifications, GET /api/v1/health, GET /api/v1/providers, GET /api/v1/providers/:id
+- [x] [T041] [US1] [P] Write contract tests for notification API in `backend/tests/contract/notifications_test.go`: Test POST with valid Telegram payload (verify 201, notification ID in response), test POST with valid Email payload, test POST with invalid provider_id (verify 404), test POST with missing required fields (verify 400 with field errors), test POST with message exceeding 4096 chars (verify 400 with limit details), test POST with metadata exceeding limits (verify 400), test POST with email exceeding 10MB (verify 400 with limit details)
+- [x] [T042] [US1] [P] Write contract tests for health check in `backend/tests/contract/health_test.go`: Test GET /health returns 200, verify JSON structure (status, version, timestamp)
 
 ### Notification Logging to Database
 
-- [ ] [T043] [US1] Implement notification logger in `backend/internal/storage/logger.go`: Function `LogNotification(notif Notification, status, errorMsg string)`, insert into `notification_logs` table with prepared statement, batch writes (buffer 100 records or flush every 5s), handle database errors gracefully (log but don't block sends)
-- [ ] [T044] [US1] Integrate logging into notification handler in `backend/internal/api/handlers.go` (extend existing): After provider.Send() call, log notification with status (delivered/failed), log error message on failure, include provider type and attempts
-- [ ] [T045] [US1] [P] Write unit tests for notification logger in `backend/tests/unit/logger_test.go`: Test insert with valid notification, verify batching behavior, test error handling (DB unavailable), verify prepared statement usage
+- [x] [T043] [US1] Implement notification logger in `backend/internal/storage/logger.go`: Function `LogNotification(notif Notification, status, errorMsg string)`, insert into `notification_logs` table with prepared statement, batch writes (buffer 100 records or flush every 5s), handle database errors gracefully (log but don't block sends)
+- [x] [T044] [US1] Integrate logging into notification handler in `backend/internal/api/handlers.go` (extend existing): After provider.Send() call, log notification with status (delivered/failed), log error message on failure, include provider type and attempts
+- [x] [T045] [US1] [P] Write unit tests for notification logger in `backend/tests/unit/logger_test.go`: Test insert with valid notification, verify batching behavior, test error handling (DB unavailable), verify prepared statement usage
 
 ### Main Server Entry Point
 
-- [ ] [T046] [US1] Implement server main in `backend/cmd/server/main.go`: Load environment variables (.env file support), initialize logger with configured level, initialize database connection, load provider configurations and register providers, setup Gin router with routes, start HTTP server on configured port (default 8080), implement graceful shutdown (listen for SIGINT/SIGTERM, close providers, close DB connection)
-- [ ] [T047] [US1] [P] Write integration test for full server in `backend/tests/integration/server_test.go`: Start server with test configuration, make HTTP requests to all endpoints, verify end-to-end notification delivery, test graceful shutdown
+- [x] [T046] [US1] Implement server main in `backend/cmd/server/main.go`: Load environment variables (.env file support), initialize logger with configured level, initialize database connection, load provider configurations and register providers, setup Gin router with routes, start HTTP server on configured port (default 8080), implement graceful shutdown (listen for SIGINT/SIGTERM, close providers, close DB connection)
+- [x] [T047] [US1] [P] Write integration test for full server in `backend/tests/integration/server_test.go`: Start server with test configuration, make HTTP requests to all endpoints, verify end-to-end notification delivery, test graceful shutdown
 
 ---
 
