@@ -72,6 +72,11 @@ func (l *Loader) LoadFile(filename string) (*ProviderConfig, error) {
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
+	// Compute checksum for change detection
+	if err := config.ComputeChecksum(); err != nil {
+		return nil, fmt.Errorf("failed to compute checksum: %w", err)
+	}
+
 	return &config, nil
 }
 

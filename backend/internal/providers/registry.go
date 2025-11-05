@@ -2,6 +2,7 @@ package providers
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 )
 
@@ -9,12 +10,24 @@ import (
 type Registry struct {
 	mu        sync.RWMutex
 	providers map[string]Provider
+	logger    *slog.Logger
 }
 
 // NewRegistry creates a new provider registry
 func NewRegistry() *Registry {
 	return &Registry{
 		providers: make(map[string]Provider),
+	}
+}
+
+// SetLogger sets the logger for the registry
+func (r *Registry) SetLogger(logger *slog.Logger) {
+	r.logger = logger
+}
+
+func (r *Registry) log(level slog.Level, msg string, args ...any) {
+	if r.logger != nil {
+		r.logger.Log(nil, level, msg, args...)
 	}
 }
 
@@ -87,6 +100,59 @@ func (r *Registry) Remove(id string) error {
 	}
 
 	delete(r.providers, id)
+	r.log(slog.LevelInfo, "Provider removed", "id", id, "type", provider.GetType())
+	return nil
+}
+
+// Replace atomically replaces a provider with a new one
+// The old provider is closed after the swap
+func (r *Registry) Replace(id string, newProvider Provider) error {
+	if newProvider == nil {
+		return fmt.Errorf("cannot replace with nil provider")
+	}
+
+	if newProvider.GetID() != id {
+		return fmt.Errorf("provider ID mismatch: expected %s, got %s", id, newProvider.GetID())
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	oldProvider, exists := r.providers[id]
+
+	// Get checksums for logging
+	oldChecksum := ""
+	newChecksum := ""
+	if exists {
+		if status := oldProvider.GetStatus(); status != nil {
+			oldChecksum = status.ConfigChecksum
+		}
+	}
+	if status := newProvider.GetStatus(); status != nil {
+		newChecksum = status.ConfigChecksum
+	}
+
+	// Atomic swap - this is the critical section
+	// Once we update the map, new requests will use the new provider
+	r.providers[id] = newProvider
+
+	r.log(slog.LevelInfo, "Provider replaced",
+		"id", id,
+		"type", newProvider.GetType(),
+		"old_checksum", oldChecksum,
+		"new_checksum", newChecksum)
+
+	// Close old provider after swap (outside critical section would be ideal,
+	// but we're already in the lock, so do it here)
+	if exists {
+		if err := oldProvider.Close(); err != nil {
+			// Log error but don't fail the replacement
+			r.log(slog.LevelWarn, "Error closing old provider after replacement",
+				"id", id,
+				"error", err)
+		}
+	}
+
 	return nil
 }
 

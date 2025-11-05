@@ -61,10 +61,19 @@ func main() {
 
 	// Create provider registry
 	registry := providers.NewRegistry()
+	registry.SetLogger(logger)
 
-	// Note: Provider loading from config files will be implemented in Phase 4 (T048-T050)
-	// For now, providers must be registered programmatically for testing
+	// Note: Initial provider loading will happen via file watcher
 	logger.Info("Provider registry initialized", "count", registry.Count())
+
+	// Start configuration file watcher
+	watcher, err := config.NewWatcher(configDir, registry, logger)
+	if err != nil {
+		logger.Error("Failed to initialize configuration watcher", "error", err)
+		os.Exit(1)
+	}
+	watcher.Start()
+	logger.Info("Configuration watcher started", "directory", configDir)
 
 	// Setup router with registry and logger
 	router := api.SetupRouter(registry, notifLogger)
@@ -96,6 +105,11 @@ func main() {
 	<-quit
 
 	logger.Info("Server shutting down...")
+
+	// Stop configuration watcher
+	if err := watcher.Stop(); err != nil {
+		logger.Error("Error stopping watcher", "error", err)
+	}
 
 	// Graceful shutdown with 10 second timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

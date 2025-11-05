@@ -127,22 +127,22 @@ Tasks are organized by implementation phase, with each task linked to user stori
 
 ### File System Watching
 
-- [ ] [T048] [US2] Implement file watcher in `backend/internal/config/watcher.go`: Initialize fsnotify watcher on `CONFIG_DIR`, watch for CREATE, WRITE, REMOVE events, implement debouncing (300ms delay to handle editor multi-write), run watcher in separate goroutine, support context cancellation for shutdown
-- [ ] [T049] [US2] Implement event handlers in `backend/internal/config/watcher.go` (extend existing): On CREATE event: load and register new provider, On WRITE event: reload and re-register existing provider (atomic swap), On REMOVE event: unregister provider and close gracefully, log all configuration changes with before/after state
-- [ ] [T050] [US2] Integrate watcher into server main in `backend/cmd/server/main.go` (extend existing): Start file watcher after initial provider load, pass provider registry to watcher, ensure watcher goroutine stops on server shutdown (context cancellation)
-- [ ] [T051] [US2] [P] Write unit tests for file watcher in `backend/tests/unit/watcher_test.go`: Test debouncing logic (rapid writes), verify event handling (create/write/remove), test context cancellation, verify no reload on malformed config
-- [ ] [T052] [US2] [P] Write integration tests for file watcher in `backend/tests/integration/watcher_test.go`: Create test config directory, add/modify/remove config files, verify provider registry updates within 30 seconds, test concurrent configuration changes
+- [x] [T048] [US2] Implement file watcher in `backend/internal/config/watcher.go`: Initialize fsnotify watcher on `CONFIG_DIR`, watch for CREATE, WRITE, REMOVE events, implement debouncing (300ms delay to handle editor multi-write), run watcher in separate goroutine, support context cancellation for shutdown
+- [x] [T049] [US2] Implement event handlers in `backend/internal/config/watcher.go` (extend existing): On CREATE event: load and register new provider, On WRITE event: reload and re-register existing provider (atomic swap), On REMOVE event: unregister provider and close gracefully, log all configuration changes with before/after state
+- [x] [T050] [US2] Integrate watcher into server main in `backend/cmd/server/main.go` (extend existing): Start file watcher after initial provider load, pass provider registry to watcher, ensure watcher goroutine stops on server shutdown (context cancellation)
+- [x] [T051] [US2] [P] Write unit tests for file watcher in `backend/tests/unit/watcher_test.go`: Test debouncing logic (rapid writes), verify event handling (create/write/remove), test context cancellation, verify no reload on malformed config
+- [x] [T052] [US2] [P] Write integration tests for file watcher in `backend/tests/integration/watcher_test.go`: Create test config directory, add/modify/remove config files, verify provider registry updates within 30 seconds, test concurrent configuration changes
 
 ### Configuration Reload & Provider Lifecycle
 
-- [ ] [T053] [US2] Implement provider replacement in `backend/internal/providers/registry.go` (extend existing): Method `Replace(id string, newProvider Provider)`, atomically swap old provider with new one in registry, call `Close()` on old provider after swap, log provider replacement with checksums
-- [ ] [T054] [US2] Implement configuration checksum in `backend/internal/config/types.go` (extend existing): Add `Checksum` field to `ProviderConfig`, compute SHA256 hash of config content, use checksum to detect actual changes (ignore editor temp writes)
-- [ ] [T055] [US2] [P] Write unit tests for provider replacement in `backend/tests/unit/registry_test.go` (extend existing): Test atomic swap during concurrent Send() calls, verify old provider Close() is called, test replacement with same ID
+- [x] [T053] [US2] Implement provider replacement in `backend/internal/providers/registry.go` (extend existing): Method `Replace(id string, newProvider Provider)`, atomically swap old provider with new one in registry, call `Close()` on old provider after swap, log provider replacement with checksums
+- [x] [T054] [US2] Implement configuration checksum in `backend/internal/config/types.go` (extend existing): Add `Checksum` field to `ProviderConfig`, compute SHA256 hash of config content, use checksum to detect actual changes (ignore editor temp writes)
+- [x] [T055] [US2] [P] Write unit tests for provider replacement in `backend/tests/unit/registry_test.go` (extend existing): Test atomic swap during concurrent Send() calls, verify old provider Close() is called, test replacement with same ID
 
 ### Error Handling & Resilience
 
-- [ ] [T056] [US2] Implement error recovery in `backend/internal/config/watcher.go` (extend existing): On config parse error: log error with details, keep existing provider active, skip reload, On provider initialization error: mark provider as "error" status in registry, store error message, keep old provider if replacement fails
-- [ ] [T057] [US2] [P] Write integration tests for error scenarios in `backend/tests/integration/config_errors_test.go`: Test malformed JSON config (verify server continues), test invalid provider credentials (verify error status), test config with duplicate provider ID (verify rejection), test deletion of active provider during notification send (verify graceful handling)
+- [x] [T056] [US2] Implement error recovery in `backend/internal/config/watcher.go` (extend existing): On config parse error: log error with details, keep existing provider active, skip reload, On provider initialization error: mark provider as "error" status in registry, store error message, keep old provider if replacement fails
+- [x] [T057] [US2] [P] Write integration tests for error scenarios in `backend/tests/integration/config_errors_test.go`: Test malformed JSON config (verify server continues), test invalid provider credentials (verify error status), test config with duplicate provider ID (verify rejection), test deletion of active provider during notification send (verify graceful handling)
 
 ---
 
@@ -152,26 +152,26 @@ Tasks are organized by implementation phase, with each task linked to user stori
 
 ### Backend API for UI
 
-- [ ] [T058] [US3] Implement provider list handler in `backend/internal/api/handlers.go` (extend existing): GET `/api/v1/providers` endpoint, retrieve all providers from registry, return JSON array with provider summaries (id, type, status, last_updated, error_message if any), mask sensitive config fields
-- [ ] [T059] [US3] Implement provider detail handler in `backend/internal/api/handlers.go` (extend existing): GET `/api/v1/providers/:id` endpoint, retrieve specific provider from registry (404 if not found), return JSON with full provider details (id, type, status, enabled, config with sensitive fields masked), mask: bot_token (show only last 4 chars), SMTP password (show ****masked****)
-- [ ] [T060] [US3] Implement sensitive field masking in `backend/internal/api/masking.go`: Function `MaskConfig(providerType string, config map[string]interface{}) map[string]interface{}`, mask specific fields based on provider type (Telegram: bot_token, Email: password), preserve non-sensitive fields (host, port, from_address)
-- [ ] [T061] [US3] [P] Write contract tests for provider API in `backend/tests/contract/providers_test.go`: Test GET /providers returns 200 with array, verify status values (active/error/disabled/initializing), test GET /providers/:id with valid ID (verify 200, masked sensitive fields), test GET /providers/:id with invalid ID (verify 404)
+- [x] [T058] [US3] Implement provider list handler in `backend/internal/api/handlers.go` (extend existing): GET `/api/v1/providers` endpoint, retrieve all providers from registry, return JSON array with provider summaries (id, type, status, last_updated, error_message if any), mask sensitive config fields
+- [x] [T059] [US3] Implement provider detail handler in `backend/internal/api/handlers.go` (extend existing): GET `/api/v1/providers/:id` endpoint, retrieve specific provider from registry (404 if not found), return JSON with full provider details (id, type, status, enabled, config with sensitive fields masked), mask: bot_token (show only last 4 chars), SMTP password (show ****masked****)
+- [x] [T060] [US3] Implement sensitive field masking in `backend/internal/api/masking.go`: Function `MaskConfig(providerType string, config map[string]interface{}) map[string]interface{}`, mask specific fields based on provider type (Telegram: bot_token, Email: password), preserve non-sensitive fields (host, port, from_address)
+- [x] [T061] [US3] [P] Write contract tests for provider API in `backend/tests/contract/providers_test.go`: Test GET /providers returns 200 with array, verify status values (active/error/disabled/initializing), test GET /providers/:id with valid ID (verify 200, masked sensitive fields), test GET /providers/:id with invalid ID (verify 404)
 
 ### Frontend Dashboard Component
 
-- [ ] [T062] [US3] Create API service in `frontend/src/services/api.ts`: Function `fetchProviders()` returns provider list from GET /api/v1/providers, function `fetchProviderDetail(id)` returns provider detail from GET /api/v1/providers/:id, implement error handling with try-catch, use fetch API (no axios dependency)
-- [ ] [T063] [US3] Create StatusBadge component in `frontend/src/components/StatusBadge.vue`: Accept `status` prop (active/error/disabled/initializing), render badge with color coding (green=active, red=error, gray=disabled, yellow=initializing), use Tailwind classes for styling, add accessible ARIA labels
-- [ ] [T064] [US3] Create ProviderCard component in `frontend/src/components/ProviderCard.vue`: Accept `provider` prop with id/type/status/lastUpdated, display provider information in card layout, show status badge using StatusBadge component, format timestamp using Date.toLocaleString(), use Tailwind for responsive card styling, add click handler to show details (future)
-- [ ] [T065] [US3] Create Dashboard view in `frontend/src/views/Dashboard.vue`: Fetch providers on component mount using `fetchProviders()`, display loading state while fetching, render list of ProviderCard components, implement auto-refresh every 30 seconds using setInterval, handle empty state (no providers configured), handle error state (API unavailable)
-- [ ] [T066] [US3] Configure routes in `frontend/src/router.ts`: Add route '/' to Dashboard view, configure Vue Router in `frontend/src/main.ts`
-- [ ] [T067] [US3] Update App.vue in `frontend/src/App.vue`: Add app header with title "Notification Server Dashboard", add router-view for page content, apply Tailwind styling for layout (responsive container, padding)
+- [x] [T062] [US3] Create API service in `frontend/src/services/api.ts`: Function `fetchProviders()` returns provider list from GET /api/v1/providers, function `fetchProviderDetail(id)` returns provider detail from GET /api/v1/providers/:id, implement error handling with try-catch, use fetch API (no axios dependency)
+- [x] [T063] [US3] Create StatusBadge component in `frontend/src/components/StatusBadge.vue`: Accept `status` prop (active/error/disabled/initializing), render badge with color coding (green=active, red=error, gray=disabled, yellow=initializing), use Tailwind classes for styling, add accessible ARIA labels
+- [x] [T064] [US3] Create ProviderCard component in `frontend/src/components/ProviderCard.vue`: Accept `provider` prop with id/type/status/lastUpdated, display provider information in card layout, show status badge using StatusBadge component, format timestamp using Date.toLocaleString(), use Tailwind for responsive card styling, add click handler to show details (future)
+- [x] [T065] [US3] Create Dashboard view in `frontend/src/views/Dashboard.vue`: Fetch providers on component mount using `fetchProviders()`, display loading state while fetching, render list of ProviderCard components, implement auto-refresh every 30 seconds using setInterval, handle empty state (no providers configured), handle error state (API unavailable)
+- [x] [T066] [US3] Configure routes in `frontend/src/router.ts`: Add route '/' to Dashboard view, configure Vue Router in `frontend/src/main.ts`
+- [x] [T067] [US3] Update App.vue in `frontend/src/App.vue`: Add app header with title "Notification Server Dashboard", add router-view for page content, apply Tailwind styling for layout (responsive container, padding)
 
 ### Frontend Testing
 
-- [ ] [T068] [US3] [P] Write unit tests for API service in `frontend/tests/unit/api.test.ts`: Test fetchProviders() with mocked fetch (verify request URL), test fetchProviderDetail(id) with mocked fetch, test error handling (network error, 404 response)
-- [ ] [T069] [US3] [P] Write unit tests for StatusBadge in `frontend/tests/unit/StatusBadge.test.ts`: Test rendering with each status value (active/error/disabled/initializing), verify correct CSS classes applied, verify ARIA labels
-- [ ] [T070] [US3] [P] Write unit tests for ProviderCard in `frontend/tests/unit/ProviderCard.test.ts`: Test rendering with provider prop, verify status badge is rendered, verify timestamp formatting
-- [ ] [T071] [US3] [P] Write unit tests for Dashboard in `frontend/tests/unit/Dashboard.test.ts`: Test provider list rendering with mocked data, test loading state, test empty state, test error state, verify auto-refresh interval setup
+- [x] [T068] [US3] [P] Write unit tests for API service in `frontend/tests/unit/api.test.ts`: Test fetchProviders() with mocked fetch (verify request URL), test fetchProviderDetail(id) with mocked fetch, test error handling (network error, 404 response)
+- [x] [T069] [US3] [P] Write unit tests for StatusBadge in `frontend/tests/unit/StatusBadge.test.ts`: Test rendering with each status value (active/error/disabled/initializing), verify correct CSS classes applied, verify ARIA labels
+- [x] [T070] [US3] [P] Write unit tests for ProviderCard in `frontend/tests/unit/ProviderCard.test.ts`: Test rendering with provider prop, verify status badge is rendered, verify timestamp formatting
+- [x] [T071] [US3] [P] Write unit tests for Dashboard in `frontend/tests/unit/Dashboard.test.ts`: Test provider list rendering with mocked data, test loading state, test empty state, test error state, verify auto-refresh interval setup
 
 ---
 

@@ -14,8 +14,8 @@ func TestRegistryRegister(t *testing.T) {
 
 	// Create a mock provider
 	mockProvider := &testhelpers.MockProvider{
-		IDFunc:   func() string { return "test-provider" },
-		TypeFunc: func() string { return "mock" },
+		IDFunc:    func() string { return "test-provider" },
+		TypeFunc:  func() string { return "mock" },
 		CloseFunc: func() error { return nil },
 	}
 
@@ -221,8 +221,8 @@ func TestRegistryConcurrentAccess(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 			mockProvider := &testhelpers.MockProvider{
-				IDFunc: func() string { return string(rune('a' + index)) },
-				TypeFunc: func() string { return "mock" },
+				IDFunc:    func() string { return string(rune('a' + index)) },
+				TypeFunc:  func() string { return "mock" },
 				CloseFunc: func() error { return nil },
 			}
 			registry.Register(mockProvider)
@@ -261,8 +261,8 @@ func TestRegistryConcurrentRemoval(t *testing.T) {
 	// Register providers
 	for i := 0; i < 10; i++ {
 		mockProvider := &testhelpers.MockProvider{
-			IDFunc: func() string { return string(rune('a' + i)) },
-			TypeFunc: func() string { return "mock" },
+			IDFunc:    func() string { return string(rune('a' + i)) },
+			TypeFunc:  func() string { return "mock" },
 			CloseFunc: func() error { return nil },
 		}
 		registry.Register(mockProvider)
@@ -324,5 +324,236 @@ func TestMockProviderStatus(t *testing.T) {
 	}
 	if status.Status != providers.StatusActive {
 		t.Errorf("Expected status active, got %s", status.Status)
+	}
+}
+
+// TestRegistryReplaceMethod tests the Replace() method for atomic swap
+func TestRegistryReplaceMethod(t *testing.T) {
+	registry := providers.NewRegistry()
+
+	// Register initial provider
+	closeCount := 0
+	oldProvider := &testhelpers.MockProvider{
+		IDFunc:   func() string { return "test-provider" },
+		TypeFunc: func() string { return "mock-v1" },
+		StatusFunc: func() *providers.ProviderStatus {
+			return &providers.ProviderStatus{
+				ConfigChecksum: "old-checksum",
+			}
+		},
+		CloseFunc: func() error {
+			closeCount++
+			return nil
+		},
+	}
+	if err := registry.Register(oldProvider); err != nil {
+		t.Fatalf("Failed to register initial provider: %v", err)
+	}
+
+	// Create new provider
+	newProvider := &testhelpers.MockProvider{
+		IDFunc:   func() string { return "test-provider" },
+		TypeFunc: func() string { return "mock-v2" },
+		StatusFunc: func() *providers.ProviderStatus {
+			return &providers.ProviderStatus{
+				ConfigChecksum: "new-checksum",
+			}
+		},
+		CloseFunc: func() error {
+			closeCount++
+			return nil
+		},
+	}
+
+	// Replace using Replace() method
+	err := registry.Replace("test-provider", newProvider)
+	if err != nil {
+		t.Errorf("Replace() failed: %v", err)
+	}
+
+	// Verify old provider was closed
+	if closeCount != 1 {
+		t.Errorf("Expected old provider to be closed once, got %d", closeCount)
+	}
+
+	// Verify new provider is in registry
+	provider, err := registry.Get("test-provider")
+	if err != nil {
+		t.Fatalf("Failed to get provider: %v", err)
+	}
+	if provider.GetType() != "mock-v2" {
+		t.Errorf("Expected provider type mock-v2, got %s", provider.GetType())
+	}
+
+	// Verify only one provider exists
+	if registry.Count() != 1 {
+		t.Errorf("Expected 1 provider after replacement, got %d", registry.Count())
+	}
+}
+
+// TestRegistryReplaceNilProvider tests that Replace() rejects nil providers
+func TestRegistryReplaceNilProvider(t *testing.T) {
+	registry := providers.NewRegistry()
+
+	// Register initial provider
+	oldProvider := &testhelpers.MockProvider{
+		IDFunc:    func() string { return "test-provider" },
+		TypeFunc:  func() string { return "mock" },
+		CloseFunc: func() error { return nil },
+	}
+	registry.Register(oldProvider)
+
+	// Attempt to replace with nil
+	err := registry.Replace("test-provider", nil)
+	if err == nil {
+		t.Error("Expected error when replacing with nil provider")
+	}
+
+	// Verify original provider still exists
+	provider, err := registry.Get("test-provider")
+	if err != nil {
+		t.Error("Original provider should still exist")
+	}
+	if provider.GetType() != "mock" {
+		t.Error("Original provider should not have changed")
+	}
+}
+
+// TestRegistryReplaceIDMismatch tests that Replace() rejects ID mismatch
+func TestRegistryReplaceIDMismatch(t *testing.T) {
+	registry := providers.NewRegistry()
+
+	// Register initial provider
+	oldProvider := &testhelpers.MockProvider{
+		IDFunc:    func() string { return "test-provider" },
+		TypeFunc:  func() string { return "mock" },
+		CloseFunc: func() error { return nil },
+	}
+	registry.Register(oldProvider)
+
+	// Attempt to replace with different ID
+	newProvider := &testhelpers.MockProvider{
+		IDFunc:    func() string { return "different-id" },
+		TypeFunc:  func() string { return "mock-v2" },
+		CloseFunc: func() error { return nil },
+	}
+
+	err := registry.Replace("test-provider", newProvider)
+	if err == nil {
+		t.Error("Expected error when provider ID doesn't match")
+	}
+
+	// Verify original provider still exists
+	provider, _ := registry.Get("test-provider")
+	if provider.GetType() != "mock" {
+		t.Error("Original provider should not have changed")
+	}
+}
+
+// TestRegistryReplaceConcurrentSend tests atomic swap during concurrent Send() calls
+func TestRegistryReplaceConcurrentSend(t *testing.T) {
+	registry := providers.NewRegistry()
+
+	sendCount := 0
+	var mu sync.Mutex
+
+	// Register initial provider
+	oldProvider := &testhelpers.MockProvider{
+		IDFunc:   func() string { return "test-provider" },
+		TypeFunc: func() string { return "mock-v1" },
+		SendFunc: func(ctx context.Context, notification *providers.Notification) error {
+			mu.Lock()
+			sendCount++
+			mu.Unlock()
+			return nil
+		},
+		CloseFunc: func() error { return nil },
+	}
+	registry.Register(oldProvider)
+
+	// Start concurrent Send() operations
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			provider, err := registry.Get("test-provider")
+			if err == nil && provider != nil {
+				notification := &providers.Notification{
+					ID:        string(rune('a' + index)),
+					Recipient: "test",
+					Message:   "test",
+				}
+				provider.Send(context.Background(), notification)
+			}
+		}(i)
+	}
+
+	// Perform replacement while Sends are happening
+	newProvider := &testhelpers.MockProvider{
+		IDFunc:   func() string { return "test-provider" },
+		TypeFunc: func() string { return "mock-v2" },
+		SendFunc: func(ctx context.Context, notification *providers.Notification) error {
+			mu.Lock()
+			sendCount++
+			mu.Unlock()
+			return nil
+		},
+		CloseFunc: func() error { return nil },
+	}
+
+	err := registry.Replace("test-provider", newProvider)
+	if err != nil {
+		t.Errorf("Replace() failed during concurrent operations: %v", err)
+	}
+
+	wg.Wait()
+
+	// Verify some sends completed (no deadlock occurred)
+	mu.Lock()
+	finalSendCount := sendCount
+	mu.Unlock()
+
+	if finalSendCount == 0 {
+		t.Error("No sends completed - possible deadlock or race condition")
+	}
+
+	t.Logf("Completed %d sends during replacement", finalSendCount)
+}
+
+// TestRegistryReplaceCloseError tests that Replace() continues even if Close() fails
+func TestRegistryReplaceCloseError(t *testing.T) {
+	registry := providers.NewRegistry()
+
+	// Register provider that fails on Close()
+	oldProvider := &testhelpers.MockProvider{
+		IDFunc:   func() string { return "test-provider" },
+		TypeFunc: func() string { return "mock-v1" },
+		CloseFunc: func() error {
+			return context.Canceled // Simulate close failure
+		},
+	}
+	registry.Register(oldProvider)
+
+	// New provider
+	newProvider := &testhelpers.MockProvider{
+		IDFunc:    func() string { return "test-provider" },
+		TypeFunc:  func() string { return "mock-v2" },
+		CloseFunc: func() error { return nil },
+	}
+
+	// Replace should succeed despite old provider Close() error
+	err := registry.Replace("test-provider", newProvider)
+	if err != nil {
+		t.Errorf("Replace() should succeed even if Close() fails: %v", err)
+	}
+
+	// Verify new provider is in place
+	provider, err := registry.Get("test-provider")
+	if err != nil {
+		t.Fatalf("Failed to get provider: %v", err)
+	}
+	if provider.GetType() != "mock-v2" {
+		t.Errorf("Expected new provider (mock-v2), got %s", provider.GetType())
 	}
 }

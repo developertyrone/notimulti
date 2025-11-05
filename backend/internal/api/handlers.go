@@ -141,21 +141,29 @@ func HandleHealthCheck() gin.HandlerFunc {
 // HandleGetProviders handles GET /api/v1/providers
 func HandleGetProviders(registry *providers.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		providers := registry.List()
-		response := make([]gin.H, len(providers))
+		providersList := registry.List()
+		response := make([]gin.H, len(providersList))
 
-		for i, p := range providers {
+		for i, p := range providersList {
 			status := p.GetStatus()
-			response[i] = gin.H{
-				"id":      p.GetID(),
-				"type":    p.GetType(),
-				"status":  status.Status,
-				"updated": status.LastUpdated,
+			summary := gin.H{
+				"id":           p.GetID(),
+				"type":         p.GetType(),
+				"status":       status.Status,
+				"last_updated": status.LastUpdated,
 			}
+
+			// Include error message if present
+			if status.ErrorMessage != "" {
+				summary["error_message"] = status.ErrorMessage
+			}
+
+			response[i] = summary
 		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"providers": response,
+			"count":     len(response),
 		})
 	}
 }
@@ -174,12 +182,20 @@ func HandleGetProvider(registry *providers.Registry) gin.HandlerFunc {
 		}
 
 		status := provider.GetStatus()
-		c.JSON(http.StatusOK, gin.H{
-			"id":      provider.GetID(),
-			"type":    provider.GetType(),
-			"status":  status.Status,
-			"updated": status.LastUpdated,
-			"error":   status.ErrorMessage,
-		})
+
+		response := gin.H{
+			"id":              provider.GetID(),
+			"type":            provider.GetType(),
+			"status":          status.Status,
+			"last_updated":    status.LastUpdated,
+			"config_checksum": status.ConfigChecksum,
+		}
+
+		// Include error message if present
+		if status.ErrorMessage != "" {
+			response["error_message"] = status.ErrorMessage
+		}
+
+		c.JSON(http.StatusOK, response)
 	}
 }
