@@ -1,0 +1,691 @@
+openapi: 3.0.3
+info:
+  title: Centralized Notification Server API (Phase 2)
+  description: |
+    REST API for sending notifications through multiple provider channels (Telegram, Email)
+    with notification history and provider testing capabilities.
+    
+    Phase 2 additions:
+    - Notification history query with filtering and pagination
+    - Provider testing endpoint for configuration validation
+    - Enhanced health checks for container readiness
+  version: 2.0.0
+  contact:
+    name: API Support
+    
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+  - url: https://notimulti.example.com/api/v1
+    description: Production server
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint (liveness probe)
+      description: Returns server health status for Kubernetes liveness probe
+      operationId: healthCheck
+      tags:
+        - System
+      responses:
+        '200':
+          description: Server process is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  version:
+                    type: string
+                    example: "2.0.0"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /ready:
+    get:
+      summary: Readiness check endpoint (readiness probe)
+      description: |
+        Returns readiness status for Kubernetes readiness probe.
+        Checks database connection and provider registry initialization.
+      operationId: readinessCheck
+      tags:
+        - System
+      responses:
+        '200':
+          description: Server is ready to handle requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ready"
+                  checks:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        example: "ok"
+                      providers:
+                        type: string
+                        example: "ok"
+        '503':
+          description: Server is not ready (database unavailable, providers not loaded)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "not_ready"
+                  checks:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        example: "error: connection failed"
+                      providers:
+                        type: string
+                        example: "ok"
+
+  /notifications:
+    post:
+      summary: Send a notification
+      description: Submit a notification request to be delivered through the specified provider
+      operationId: sendNotification
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationRequest'
+            examples:
+              telegram:
+                summary: Telegram notification
+                value:
+                  provider_id: "telegram-alerts"
+                  recipient: "-1001234567890"
+                  message: "Server alert: High CPU usage detected"
+                  metadata:
+                    source: "monitoring-system"
+                    severity: "warning"
+                  priority: "high"
+              email:
+                summary: Email notification
+                value:
+                  provider_id: "email-prod"
+                  recipient: "admin@example.com"
+                  subject: "System Alert"
+                  message: "Database backup completed successfully"
+                  priority: "normal"
+      responses:
+        '201':
+          description: Notification request accepted and logged
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+              description: Unique request identifier for tracing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        '400':
+          description: Invalid request (validation error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "VALIDATION_ERROR"
+                message: "Request validation failed"
+                details:
+                  provider_id: "required field missing"
+                  message: "message exceeds maximum length of 4096 characters"
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "PROVIDER_NOT_FOUND"
+                message: "Provider with ID 'unknown-provider' not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications/history:
+    get:
+      summary: Query notification history
+      description: |
+        Retrieve notification history with optional filtering by provider, status, date range.
+        Uses cursor-based pagination for efficient paging through large result sets.
+        Results are sorted by created_at DESC by default.
+      operationId: getNotificationHistory
+      tags:
+        - Notifications
+      parameters:
+        - name: provider_id
+          in: query
+          description: Filter by specific provider ID
+          schema:
+            type: string
+          example: "telegram-alerts"
+        - name: provider_type
+          in: query
+          description: Filter by provider type
+          schema:
+            type: string
+            enum: [telegram, email]
+          example: "telegram"
+        - name: status
+          in: query
+          description: Filter by delivery status
+          schema:
+            type: string
+            enum: [pending, sent, failed, retrying]
+          example: "failed"
+        - name: date_from
+          in: query
+          description: Filter notifications created after this date (ISO8601)
+          schema:
+            type: string
+            format: date-time
+          example: "2025-11-01T00:00:00Z"
+        - name: date_to
+          in: query
+          description: Filter notifications created before this date (ISO8601)
+          schema:
+            type: string
+            format: date-time
+          example: "2025-11-06T23:59:59Z"
+        - name: include_tests
+          in: query
+          description: Include test notifications in results
+          schema:
+            type: boolean
+            default: true
+          example: false
+        - name: cursor
+          in: query
+          description: Cursor for pagination (last notification ID from previous page)
+          schema:
+            type: integer
+          example: 12345
+        - name: page_size
+          in: query
+          description: Number of results per page (max 100)
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+          example: 50
+      responses:
+        '200':
+          description: Notification history results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationHistoryResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications/{id}:
+    get:
+      summary: Get notification details
+      description: Retrieve full details of a specific notification by ID
+      operationId: getNotificationDetails
+      tags:
+        - Notifications
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Notification log entry ID
+          schema:
+            type: integer
+          example: 12345
+      responses:
+        '200':
+          description: Notification details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationLogEntry'
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /providers:
+    get:
+      summary: List all providers
+      description: Get list of all configured notification providers with their current status
+      operationId: listProviders
+      tags:
+        - Providers
+      responses:
+        '200':
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProviderSummary'
+              example:
+                providers:
+                  - id: "telegram-alerts"
+                    type: "telegram"
+                    status: "active"
+                    last_updated: "2025-11-03T10:00:00Z"
+                    last_test_at: "2025-11-06T09:00:00Z"
+                    last_test_status: "success"
+                  - id: "email-prod"
+                    type: "email"
+                    status: "active"
+                    last_updated: "2025-11-03T09:30:00Z"
+                    last_test_at: null
+                    last_test_status: null
+
+  /providers/{id}:
+    get:
+      summary: Get provider details
+      description: Get detailed information about a specific provider (sensitive data masked)
+      operationId: getProvider
+      tags:
+        - Providers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Provider instance ID
+          schema:
+            type: string
+          example: "telegram-alerts"
+      responses:
+        '200':
+          description: Provider details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderDetail'
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /providers/{id}/test:
+    post:
+      summary: Test provider configuration
+      description: |
+        Send a test notification through the specified provider to validate configuration.
+        Test notifications use default test recipients and are logged with is_test=true flag.
+        Operation is synchronous and returns result immediately.
+      operationId: testProvider
+      tags:
+        - Providers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Provider instance ID to test
+          schema:
+            type: string
+          example: "telegram-alerts"
+      responses:
+        '200':
+          description: Test completed (check result field for success/failure)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderTestResponse'
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many test requests (rate limited)
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait before retrying
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "RATE_LIMITED"
+                message: "Provider test already in progress or tested recently. Please wait."
+
+components:
+  schemas:
+    NotificationRequest:
+      type: object
+      required:
+        - provider_id
+        - recipient
+        - message
+      properties:
+        provider_id:
+          type: string
+          description: Target provider instance ID
+          example: "telegram-alerts"
+        recipient:
+          type: string
+          description: Recipient identifier (chat ID for Telegram, email address for Email)
+          example: "-1001234567890"
+        message:
+          type: string
+          description: Notification message content
+          maxLength: 4096
+          example: "Server alert: High CPU usage detected"
+        subject:
+          type: string
+          description: Message subject (Email only)
+          example: "System Alert"
+        metadata:
+          type: object
+          description: Optional key-value pairs for additional context
+          additionalProperties:
+            type: string
+          example:
+            source: "monitoring-system"
+            severity: "warning"
+        priority:
+          type: string
+          enum: [low, normal, high]
+          default: normal
+          description: Notification priority level
+
+    NotificationResponse:
+      type: object
+      required:
+        - id
+        - status
+        - created_at
+      properties:
+        id:
+          type: integer
+          description: Unique notification log entry ID
+          example: 12345
+        status:
+          type: string
+          enum: [pending, sent, failed, retrying]
+          description: Current delivery status
+          example: "pending"
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when request was received
+          example: "2025-11-03T10:30:00Z"
+
+    NotificationLogEntry:
+      type: object
+      required:
+        - id
+        - provider_id
+        - provider_type
+        - recipient
+        - message
+        - priority
+        - status
+        - attempts
+        - created_at
+        - is_test
+      properties:
+        id:
+          type: integer
+          description: Unique notification log entry ID
+          example: 12345
+        provider_id:
+          type: string
+          description: Provider instance that handled this notification
+          example: "telegram-alerts"
+        provider_type:
+          type: string
+          enum: [telegram, email]
+          description: Type of provider
+          example: "telegram"
+        recipient:
+          type: string
+          description: Notification recipient
+          example: "-1001234567890"
+        message:
+          type: string
+          description: Full notification message content
+          example: "Server alert: High CPU usage detected"
+        subject:
+          type: string
+          nullable: true
+          description: Email subject (Email only)
+          example: "System Alert"
+        metadata:
+          type: object
+          nullable: true
+          description: Additional metadata as key-value pairs
+          additionalProperties:
+            type: string
+          example:
+            source: "monitoring-system"
+            severity: "warning"
+        priority:
+          type: string
+          enum: [low, normal, high]
+          description: Notification priority
+          example: "high"
+        status:
+          type: string
+          enum: [pending, sent, failed, retrying]
+          description: Delivery status
+          example: "sent"
+        error_message:
+          type: string
+          nullable: true
+          description: Error details if delivery failed
+          example: null
+        attempts:
+          type: integer
+          description: Number of delivery attempts
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          description: When notification was received
+          example: "2025-11-06T10:30:00Z"
+        delivered_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When notification was successfully delivered
+          example: "2025-11-06T10:30:02Z"
+        is_test:
+          type: boolean
+          description: Whether this was a test notification
+          example: false
+
+    NotificationHistoryResponse:
+      type: object
+      required:
+        - notifications
+        - pagination
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationLogEntry'
+        pagination:
+          type: object
+          required:
+            - page_size
+            - has_more
+          properties:
+            page_size:
+              type: integer
+              description: Requested page size
+              example: 50
+            has_more:
+              type: boolean
+              description: Whether more results are available
+              example: true
+            next_cursor:
+              type: integer
+              nullable: true
+              description: Cursor for next page (last notification ID in current page)
+              example: 12294
+
+    ProviderSummary:
+      type: object
+      required:
+        - id
+        - type
+        - status
+        - last_updated
+      properties:
+        id:
+          type: string
+          description: Unique provider instance ID
+          example: "telegram-alerts"
+        type:
+          type: string
+          enum: [telegram, email]
+          description: Provider type
+          example: "telegram"
+        status:
+          type: string
+          enum: [active, error, disabled, initializing]
+          description: Current operational status
+          example: "active"
+        last_updated:
+          type: string
+          format: date-time
+          description: Timestamp of last configuration update
+          example: "2025-11-03T10:00:00Z"
+        error_message:
+          type: string
+          nullable: true
+          description: Error details if status is 'error'
+          example: null
+        last_test_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When this provider was last tested
+          example: "2025-11-06T09:00:00Z"
+        last_test_status:
+          type: string
+          enum: [success, failed]
+          nullable: true
+          description: Result of last test
+          example: "success"
+
+    ProviderDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProviderSummary'
+        - type: object
+          properties:
+            enabled:
+              type: boolean
+              description: Whether provider is enabled
+              example: true
+            config:
+              type: object
+              description: Provider-specific configuration (sensitive values masked)
+              example:
+                default_chat_id: "-1001234567890"
+                parse_mode: "Markdown"
+                timeout_seconds: 5
+                bot_token: "****masked****"
+
+    ProviderTestResponse:
+      type: object
+      required:
+        - result
+        - tested_at
+      properties:
+        result:
+          type: string
+          enum: [success, failed]
+          description: Test result
+          example: "success"
+        tested_at:
+          type: string
+          format: date-time
+          description: When test was executed
+          example: "2025-11-06T10:15:30Z"
+        message:
+          type: string
+          description: Success message or error details
+          example: "Test notification sent successfully to chat -1001234567890"
+        error_details:
+          type: string
+          nullable: true
+          description: Detailed error information if test failed
+          example: null
+        log_id:
+          type: integer
+          description: Notification log entry ID for this test
+          example: 12346
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Request validation failed"
+        details:
+          type: object
+          description: Additional error context (e.g., field-level validation errors)
+          additionalProperties: true
+          example:
+            field_name: "error description"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key authentication (optional, for future use)
+
+tags:
+  - name: System
+    description: System health and status endpoints
+  - name: Notifications
+    description: Notification submission and history operations
+  - name: Providers
+    description: Provider management, status queries, and testing
