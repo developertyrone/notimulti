@@ -20,7 +20,7 @@ func TestWatcherIntegrationConfigChanges(t *testing.T) {
 	}
 
 	testDir := t.TempDir()
-	
+
 	registry := providers.NewRegistry()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	registry.SetLogger(logger)
@@ -32,7 +32,7 @@ func TestWatcherIntegrationConfigChanges(t *testing.T) {
 	defer watcher.Stop()
 
 	watcher.Start()
-	
+
 	// Wait for watcher to initialize
 	time.Sleep(200 * time.Millisecond)
 
@@ -47,7 +47,7 @@ func TestWatcherIntegrationConfigChanges(t *testing.T) {
 			"default_chat_id": "987654321"
 		}
 	}`
-	
+
 	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
 		t.Fatalf("Failed to create config file: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestWatcherIntegrationConfigChanges(t *testing.T) {
 			"default_chat_id": "123456789"
 		}
 	}`
-	
+
 	if err := os.WriteFile(configPath, []byte(updatedConfig), 0644); err != nil {
 		t.Fatalf("Failed to update config file: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestWatcherIntegrationConcurrentChanges(t *testing.T) {
 	}
 
 	testDir := t.TempDir()
-	
+
 	registry := providers.NewRegistry()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	registry.SetLogger(logger)
@@ -117,11 +117,11 @@ func TestWatcherIntegrationConcurrentChanges(t *testing.T) {
 				"default_chat_id": "12345` + string(rune('0'+i)) + `"
 			}
 		}`
-		
+
 		if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 			t.Fatalf("Failed to create config file %d: %v", i, err)
 		}
-		
+
 		// Small delay between creates to stagger events
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -150,7 +150,7 @@ func TestWatcherIntegrationRapidUpdates(t *testing.T) {
 	}
 
 	testDir := t.TempDir()
-	
+
 	registry := providers.NewRegistry()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	registry.SetLogger(logger)
@@ -165,7 +165,7 @@ func TestWatcherIntegrationRapidUpdates(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	configPath := filepath.Join(testDir, "rapid-test.json")
-	
+
 	// Write the file multiple times rapidly
 	for i := 0; i < 10; i++ {
 		configContent := `{
@@ -177,11 +177,11 @@ func TestWatcherIntegrationRapidUpdates(t *testing.T) {
 				"default_chat_id": "12345` + string(rune('0'+i%10)) + `"
 			}
 		}`
-		
+
 		if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 			t.Fatalf("Failed to write config file iteration %d: %v", i, err)
 		}
-		
+
 		// Write every 50ms - faster than debounce period
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -203,7 +203,7 @@ func TestWatcherIntegrationChecksumDetection(t *testing.T) {
 	}
 
 	testDir := t.TempDir()
-	
+
 	registry := providers.NewRegistry()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	registry.SetLogger(logger)
@@ -227,7 +227,7 @@ func TestWatcherIntegrationChecksumDetection(t *testing.T) {
 			"default_chat_id": "999999999"
 		}
 	}`
-	
+
 	// Write initial config
 	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 		t.Fatalf("Failed to create config file: %v", err)
@@ -256,7 +256,7 @@ func TestWatcherIntegrationMixedFileTypes(t *testing.T) {
 	}
 
 	testDir := t.TempDir()
-	
+
 	registry := providers.NewRegistry()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	registry.SetLogger(logger)
@@ -309,7 +309,7 @@ func TestWatcherIntegrationGracefulShutdown(t *testing.T) {
 	}
 
 	testDir := t.TempDir()
-	
+
 	registry := providers.NewRegistry()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 
@@ -332,7 +332,7 @@ func TestWatcherIntegrationGracefulShutdown(t *testing.T) {
 			"default_chat_id": "123456789"
 		}
 	}`
-	
+
 	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 		t.Fatalf("Failed to create config: %v", err)
 	}

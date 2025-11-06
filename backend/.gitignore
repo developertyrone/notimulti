@@ -1,11 +1,46 @@
-# Binaries
+# Binaries for programs and plugins
 *.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+notimulti-server
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.*
+*.coverprofile
+
+# Database files
 *.db
 *.sqlite
+*.sqlite3
 
-# Environment
+# Environment files
 .env
+.env.*
+!.env.example
 
 # Config files with secrets
 configs/*.json
 !configs/.gitkeep
+
+# Dependency directories
+vendor/
+
+# Logs
+*.log
+
+# Editor and IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

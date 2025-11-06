@@ -67,3 +67,5 @@ coverage/
 # Logs
 logs/
 *.log
+backend/notimulti.db-shm
+backend/notimulti.db-wal

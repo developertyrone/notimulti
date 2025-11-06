@@ -20,11 +20,15 @@ More complex orchestration
 Concurrency considerations
 Better handled by Sonnet's deeper reasoning
 
---- PHASE2 ---
+--- FEATURE2 ---
 notification log 
 one click button to test the provider instance
-k8s + docker compose deployment
 ci build for docker repository (keep secret in github repo)
+k8s + docker compose deployment
+
+
+
+--- FEATURE3 ---
 release notes and tags for each release in github
 
 

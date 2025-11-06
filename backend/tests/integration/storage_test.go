@@ -76,19 +76,19 @@ func TestTableStructure(t *testing.T) {
 	defer rows.Close()
 
 	expectedColumns := map[string]bool{
-		"id":             false,
-		"provider_id":    false,
-		"provider_type":  false,
-		"recipient":      false,
-		"message":        false,
-		"subject":        false,
-		"metadata":       false,
-		"priority":       false,
-		"status":         false,
-		"error_message":  false,
-		"attempts":       false,
-		"created_at":     false,
-		"delivered_at":   false,
+		"id":            false,
+		"provider_id":   false,
+		"provider_type": false,
+		"recipient":     false,
+		"message":       false,
+		"subject":       false,
+		"metadata":      false,
+		"priority":      false,
+		"status":        false,
+		"error_message": false,
+		"attempts":      false,
+		"created_at":    false,
+		"delivered_at":  false,
 	}
 
 	for rows.Next() {

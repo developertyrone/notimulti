@@ -174,6 +174,16 @@ func (w *Watcher) handleCreateOrWrite(path, configID string) {
 		return
 	}
 
+	// Skip disabled providers
+	if !config.Enabled {
+		w.logger.Info("Skipping disabled provider", "id", config.ID, "type", config.Type)
+		// If provider was previously registered, remove it
+		if _, err := w.registry.Get(configID); err == nil {
+			w.handleRemove(configID)
+		}
+		return
+	}
+
 	// Check if provider already exists
 	existingProvider, err := w.registry.Get(configID)
 
@@ -209,40 +219,52 @@ func (w *Watcher) handleCreate(config *ProviderConfig) {
 	}
 
 	// Set type-specific config
+	var parseErr error
 	switch config.Type {
 	case "telegram":
 		if tgConfig, err := parseTelegramConfig(config.Config); err == nil {
 			providerConfig.Telegram = tgConfig
 		} else {
+			parseErr = err
 			w.logger.Error("Failed to parse Telegram config",
 				"id", config.ID,
 				"error", err)
-			return
 		}
 	case "email":
 		if emailConfig, err := parseEmailConfig(config.Config); err == nil {
 			providerConfig.Email = emailConfig
 		} else {
+			parseErr = err
 			w.logger.Error("Failed to parse Email config",
 				"id", config.ID,
 				"error", err)
-			return
 		}
 	default:
+		parseErr = fmt.Errorf("unknown provider type: %s", config.Type)
 		w.logger.Error("Unknown provider type",
 			"id", config.ID,
 			"type", config.Type)
-		return
 	}
 
-	// Create the provider
-	provider, err := w.factory.NewProvider(providerConfig)
-	if err != nil {
-		w.logger.Error("Failed to create provider",
+	// Create provider (or failed provider if parsing failed)
+	var provider providers.Provider
+	if parseErr != nil {
+		// Create failed provider so it shows in UI with error
+		provider = providers.NewFailedProvider(config.ID, config.Type, parseErr)
+		w.logger.Warn("Registering provider with parse error",
 			"id", config.ID,
-			"type", config.Type,
-			"error", err)
-		return
+			"error", parseErr)
+	} else {
+		// Try to create the actual provider
+		var err error
+		provider, err = w.factory.NewProvider(providerConfig)
+		if err != nil {
+			// Provider initialization failed - create failed provider
+			provider = providers.NewFailedProvider(config.ID, config.Type, err)
+			w.logger.Warn("Registering provider with initialization error",
+				"id", config.ID,
+				"error", err)
+		}
 	}
 
 	// Update provider status with checksum
@@ -250,7 +272,7 @@ func (w *Watcher) handleCreate(config *ProviderConfig) {
 		status.ConfigChecksum = config.Checksum
 	}
 
-	// Register the provider
+	// Register the provider (even if failed)
 	if err := w.registry.Register(provider); err != nil {
 		w.logger.Error("Failed to register provider",
 			"id", config.ID,
@@ -278,40 +300,52 @@ func (w *Watcher) handleWrite(config *ProviderConfig) {
 	}
 
 	// Set type-specific config
+	var parseErr error
 	switch config.Type {
 	case "telegram":
 		if tgConfig, err := parseTelegramConfig(config.Config); err == nil {
 			providerConfig.Telegram = tgConfig
 		} else {
+			parseErr = err
 			w.logger.Error("Failed to parse Telegram config",
 				"id", config.ID,
 				"error", err)
-			return
 		}
 	case "email":
 		if emailConfig, err := parseEmailConfig(config.Config); err == nil {
 			providerConfig.Email = emailConfig
 		} else {
+			parseErr = err
 			w.logger.Error("Failed to parse Email config",
 				"id", config.ID,
 				"error", err)
-			return
 		}
 	default:
+		parseErr = fmt.Errorf("unknown provider type: %s", config.Type)
 		w.logger.Error("Unknown provider type",
 			"id", config.ID,
 			"type", config.Type)
-		return
 	}
 
-	// Create the new provider
-	newProvider, err := w.factory.NewProvider(providerConfig)
-	if err != nil {
-		w.logger.Error("Failed to create new provider",
+	// Create new provider (or failed provider if parsing failed)
+	var newProvider providers.Provider
+	if parseErr != nil {
+		// Create failed provider so it shows in UI with error
+		newProvider = providers.NewFailedProvider(config.ID, config.Type, parseErr)
+		w.logger.Warn("Replacing with provider in error state (parse error)",
 			"id", config.ID,
-			"type", config.Type,
-			"error", err)
-		return
+			"error", parseErr)
+	} else {
+		// Try to create the actual provider
+		var err error
+		newProvider, err = w.factory.NewProvider(providerConfig)
+		if err != nil {
+			// Provider initialization failed - create failed provider
+			newProvider = providers.NewFailedProvider(config.ID, config.Type, err)
+			w.logger.Warn("Replacing with provider in error state (initialization error)",
+				"id", config.ID,
+				"error", err)
+		}
 	}
 
 	// Update provider status with checksum
@@ -319,7 +353,7 @@ func (w *Watcher) handleWrite(config *ProviderConfig) {
 		status.ConfigChecksum = config.Checksum
 	}
 
-	// Replace the provider atomically
+	// Replace the provider atomically (even if failed)
 	if err := w.registry.Replace(config.ID, newProvider); err != nil {
 		w.logger.Error("Failed to replace provider",
 			"id", config.ID,
