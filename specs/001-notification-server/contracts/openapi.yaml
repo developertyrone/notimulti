@@ -1,0 +1,324 @@
+openapi: 3.0.3
+info:
+  title: Centralized Notification Server API
+  description: REST API for sending notifications through multiple provider channels (Telegram, Email)
+  version: 1.0.0
+  contact:
+    name: API Support
+    
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+  - url: http://localhost:8080/api/v1
+    description: Production server (update with actual URL)
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns server health status
+      operationId: healthCheck
+      tags:
+        - System
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /notifications:
+    post:
+      summary: Send a notification
+      description: Submit a notification request to be delivered through the specified provider
+      operationId: sendNotification
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationRequest'
+            examples:
+              telegram:
+                summary: Telegram notification
+                value:
+                  provider_id: "telegram-alerts"
+                  recipient: "-1001234567890"
+                  message: "Server alert: High CPU usage detected"
+                  metadata:
+                    source: "monitoring-system"
+                    severity: "warning"
+                  priority: "high"
+              email:
+                summary: Email notification
+                value:
+                  provider_id: "email-prod"
+                  recipient: "admin@example.com"
+                  subject: "System Alert"
+                  message: "Database backup completed successfully"
+                  priority: "normal"
+      responses:
+        '201':
+          description: Notification request accepted
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+              description: Unique request identifier for tracing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        '400':
+          description: Invalid request (validation error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "VALIDATION_ERROR"
+                message: "Request validation failed"
+                details:
+                  provider_id: "required field missing"
+                  message: "message exceeds maximum length of 4096 characters"
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "PROVIDER_NOT_FOUND"
+                message: "Provider with ID 'unknown-provider' not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /providers:
+    get:
+      summary: List all providers
+      description: Get list of all configured notification providers with their current status
+      operationId: listProviders
+      tags:
+        - Providers
+      responses:
+        '200':
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProviderSummary'
+              example:
+                providers:
+                  - id: "telegram-alerts"
+                    type: "telegram"
+                    status: "active"
+                    last_updated: "2025-11-03T10:00:00Z"
+                  - id: "email-prod"
+                    type: "email"
+                    status: "active"
+                    last_updated: "2025-11-03T09:30:00Z"
+                  - id: "telegram-backup"
+                    type: "telegram"
+                    status: "disabled"
+                    last_updated: "2025-11-02T15:00:00Z"
+
+  /providers/{id}:
+    get:
+      summary: Get provider details
+      description: Get detailed information about a specific provider (sensitive data masked)
+      operationId: getProvider
+      tags:
+        - Providers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Provider instance ID
+          schema:
+            type: string
+          example: "telegram-alerts"
+      responses:
+        '200':
+          description: Provider details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderDetail'
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    NotificationRequest:
+      type: object
+      required:
+        - provider_id
+        - recipient
+        - message
+      properties:
+        provider_id:
+          type: string
+          description: Target provider instance ID
+          example: "telegram-alerts"
+        recipient:
+          type: string
+          description: Recipient identifier (chat ID for Telegram, email address for Email)
+          example: "-1001234567890"
+        message:
+          type: string
+          description: Notification message content
+          maxLength: 4096
+          example: "Server alert: High CPU usage detected"
+        subject:
+          type: string
+          description: Message subject (Email only)
+          example: "System Alert"
+        metadata:
+          type: object
+          description: Optional key-value pairs for additional context
+          additionalProperties:
+            type: string
+          example:
+            source: "monitoring-system"
+            severity: "warning"
+        priority:
+          type: string
+          enum: [low, normal, high]
+          default: normal
+          description: Notification priority level
+
+    NotificationResponse:
+      type: object
+      required:
+        - id
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique notification request ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [pending, sending, delivered, failed, retrying]
+          description: Current delivery status
+          example: "pending"
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when request was received
+          example: "2025-11-03T10:30:00Z"
+
+    ProviderSummary:
+      type: object
+      required:
+        - id
+        - type
+        - status
+        - last_updated
+      properties:
+        id:
+          type: string
+          description: Unique provider instance ID
+          example: "telegram-alerts"
+        type:
+          type: string
+          enum: [telegram, email]
+          description: Provider type
+          example: "telegram"
+        status:
+          type: string
+          enum: [active, error, disabled, initializing]
+          description: Current operational status
+          example: "active"
+        last_updated:
+          type: string
+          format: date-time
+          description: Timestamp of last configuration update
+          example: "2025-11-03T10:00:00Z"
+        error_message:
+          type: string
+          nullable: true
+          description: Error details if status is 'error'
+          example: null
+
+    ProviderDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProviderSummary'
+        - type: object
+          properties:
+            enabled:
+              type: boolean
+              description: Whether provider is enabled
+              example: true
+            config:
+              type: object
+              description: Provider-specific configuration (sensitive values masked)
+              example:
+                default_chat_id: "-1001234567890"
+                parse_mode: "Markdown"
+                timeout_seconds: 5
+                bot_token: "****masked****"
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Request validation failed"
+        details:
+          type: object
+          description: Additional error context (e.g., field-level validation errors)
+          additionalProperties: true
+          example:
+            field_name: "error description"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key authentication (optional, for future use)
+
+tags:
+  - name: System
+    description: System health and status endpoints
+  - name: Notifications
+    description: Notification submission operations
+  - name: Providers
+    description: Provider management and status queries
