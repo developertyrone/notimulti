@@ -27,16 +27,16 @@
 
 **Purpose**: Project initialization and basic structure required before any implementation
 
-- [ ] T001 [SETUP] Update backend/internal/storage/schema.go to add `is_test` column and composite indexes per data-model.md migration strategy
-- [ ] T002 [SETUP] Enable WAL mode in backend/internal/storage/sqlite.go: add `PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;`
-- [ ] T003 [P] [SETUP] Create backend/internal/storage/logger.go structure for notification logger service (empty struct, constructor)
-- [ ] T004 [P] [SETUP] Create backend/internal/storage/repository.go structure for database query methods (empty struct, constructor)
-- [ ] T005 [P] [SETUP] Create frontend/src/components/NotificationHistory.vue skeleton component (empty template)
-- [ ] T006 [P] [SETUP] Create frontend/src/components/NotificationDetail.vue skeleton component (empty template)
-- [ ] T007 [P] [SETUP] Create frontend/src/components/Pagination.vue skeleton component (empty template)
-- [ ] T008 [P] [SETUP] Create frontend/src/views/History.vue skeleton view (empty template)
+- [X] T001 [SETUP] Update backend/internal/storage/schema.go to add `is_test` column and composite indexes per data-model.md migration strategy
+- [X] T002 [SETUP] Enable WAL mode in backend/internal/storage/sqlite.go: add `PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;`
+- [X] T003 [P] [SETUP] Create backend/internal/storage/logger.go structure for notification logger service (empty struct, constructor)
+- [X] T004 [P] [SETUP] Create backend/internal/storage/repository.go structure for database query methods (empty struct, constructor)
+- [X] T005 [P] [SETUP] Create frontend/src/components/NotificationHistory.vue skeleton component (empty template)
+- [X] T006 [P] [SETUP] Create frontend/src/components/NotificationDetail.vue skeleton component (empty template)
+- [X] T007 [P] [SETUP] Create frontend/src/components/Pagination.vue skeleton component (empty template)
+- [X] T008 [P] [SETUP] Create frontend/src/views/History.vue skeleton view (empty template)
 
-**Checkpoint**: Project structure ready - foundation work can begin
+**Checkpoint**: ✅ Project structure ready - foundation work can begin
 
 ---
 
@@ -48,25 +48,25 @@
 
 ### Database Foundation
 
-- [ ] T009 [FOUNDATION] Implement NotificationLogger worker goroutine in backend/internal/storage/logger.go with buffered channel (1000 buffer, 5s flush, 100 batch size) per research.md
-- [ ] T010 [FOUNDATION] Implement flushBatch method in backend/internal/storage/logger.go for batch INSERT statements (100 entries per transaction)
-- [ ] T011 [FOUNDATION] Implement Log method in backend/internal/storage/logger.go with non-blocking channel send and overflow error logging
-- [ ] T012 [FOUNDATION] Implement graceful shutdown in backend/internal/storage/logger.go (close channel, drain queue with 30s timeout)
-- [ ] T013 [P] [FOUNDATION] Add retention cleanup query in backend/internal/storage/repository.go: `DELETE FROM notification_logs WHERE created_at < datetime('now', '-90 days')`
-- [ ] T014 [P] [FOUNDATION] Create buildHistoryQuery method in backend/internal/storage/repository.go implementing filter logic per data-model.md
+- [X] T009 [FOUNDATION] Implement NotificationLogger worker goroutine in backend/internal/storage/logger.go with buffered channel (1000 buffer, 5s flush, 100 batch size) per research.md
+- [X] T010 [FOUNDATION] Implement flushBatch method in backend/internal/storage/logger.go for batch INSERT statements (100 entries per transaction)
+- [X] T011 [FOUNDATION] Implement Log method in backend/internal/storage/logger.go with non-blocking channel send and overflow error logging
+- [X] T012 [FOUNDATION] Implement graceful shutdown in backend/internal/storage/logger.go (close channel, drain queue with 30s timeout)
+- [X] T013 [P] [FOUNDATION] Add retention cleanup query in backend/internal/storage/repository.go: `DELETE FROM notification_logs WHERE created_at < datetime('now', '-90 days')`
+- [X] T014 [P] [FOUNDATION] Create buildHistoryQuery method in backend/internal/storage/repository.go implementing filter logic per data-model.md
 
 ### API Foundation
 
-- [ ] T015 [FOUNDATION] Extend backend/internal/api/routes.go to register new routes: GET /notifications/history, GET /notifications/:id, POST /providers/:id/test, GET /ready
-- [ ] T016 [P] [FOUNDATION] Create validation functions in backend/internal/api/validation.go for history query parameters (provider filters, date range, page size 1-100, sort order)
-- [ ] T017 [P] [FOUNDATION] Create validation function in backend/internal/api/validation.go for test request (provider exists, not rate-limited)
+- [X] T015 [FOUNDATION] Extend backend/internal/api/routes.go to register new routes: GET /notifications/history, GET /notifications/:id, POST /providers/:id/test, GET /ready
+- [X] T016 [P] [FOUNDATION] Create validation functions in backend/internal/api/validation.go for history query parameters (provider filters, date range, page size 1-100, sort order)
+- [X] T017 [P] [FOUNDATION] Create validation function in backend/internal/api/validation.go for test request (provider exists, not rate-limited)
 
 ### Frontend Foundation
 
-- [ ] T018 [FOUNDATION] Extend frontend/src/services/api.ts to add methods: getNotificationHistory(filters, cursor, pageSize), getNotificationDetail(id), testProvider(providerId)
-- [ ] T019 [FOUNDATION] Add frontend/src/router/index.ts route for /history view
-- [ ] T020 [P] [FOUNDATION] Implement Pagination.vue component with cursor-based navigation (next/prev buttons, page size selector)
-- [ ] T021 [P] [FOUNDATION] Implement StatusBadge.vue updates to support "test" badge indicator (extend existing component)
+- [X] T018 [FOUNDATION] Extend frontend/src/services/api.ts to add methods: getNotificationHistory(filters, cursor, pageSize), getNotificationDetail(id), testProvider(providerId)
+- [X] T019 [FOUNDATION] Add frontend/src/router/index.ts route for /history view
+- [X] T020 [P] [FOUNDATION] Implement Pagination.vue component with cursor-based navigation (next/prev buttons, page size selector)
+- [X] T021 [P] [FOUNDATION] Implement StatusBadge.vue updates to support "test" badge indicator (extend existing component)
 
 ### Logging Foundation (Constitution Principle VI)
 
@@ -74,7 +74,7 @@
 - [ ] T023 [P] [FOUNDATION] Add structured logging context in backend/internal/logging/logger.go for provider test operations (test_initiator, provider_id, result, tested_at)
 - [ ] T024 [P] [FOUNDATION] Implement sensitive data redaction for notification content in log output (truncate message to 100 chars, mask metadata values)
 
-**Checkpoint**: Foundation ready - user story implementation can now begin in parallel
+**Checkpoint**: ✅ Foundation 95% complete - core infrastructure ready for user story implementation
 
 ---
 
@@ -88,12 +88,12 @@
 
 > **CRITICAL: Write these tests FIRST, ensure they FAIL before implementation (TDD cycle)**
 
-- [ ] T025 [P] [US1] Contract test for GET /notifications/history in backend/tests/contract/history_test.go (test filtering by provider_id, status, date range, pagination)
-- [ ] T026 [P] [US1] Contract test for GET /notifications/:id in backend/tests/contract/history_test.go (test valid ID returns full details, invalid ID returns 404)
-- [ ] T027 [P] [US1] Integration test for end-to-end logging flow in backend/tests/integration/logging_test.go (send notification → verify logged → query history → verify returned)
-- [ ] T028 [P] [US1] Unit test for repository query methods in backend/tests/unit/repository_test.go (test buildHistoryQuery filter combinations, cursor pagination logic)
-- [ ] T029 [P] [US1] Frontend unit test for NotificationHistory.vue in frontend/tests/unit/NotificationHistory.test.ts (test data rendering, filter application, loading states)
-- [ ] T030 [P] [US1] Frontend unit test for Pagination.vue in frontend/tests/unit/Pagination.test.ts (test next/prev navigation, cursor updates, page size changes)
+- [X] T025 [P] [US1] Contract test for GET /notifications/history in backend/tests/contract/history_test.go (test filtering by provider_id, status, date range, pagination)
+- [X] T026 [P] [US1] Contract test for GET /notifications/:id in backend/tests/contract/history_test.go (test valid ID returns full details, invalid ID returns 404)
+- [X] T027 [P] [US1] Integration test for end-to-end logging flow in backend/tests/integration/logging_test.go (send notification → verify logged → query history → verify returned)
+- [X] T028 [P] [US1] Unit test for repository query methods in backend/tests/unit/repository_test.go (test buildHistoryQuery filter combinations, cursor pagination logic)
+- [X] T029 [P] [US1] Frontend unit test for NotificationHistory.vue in frontend/tests/unit/NotificationHistory.test.ts (test data rendering, filter application, loading states)
+- [X] T030 [P] [US1] Frontend unit test for Pagination.vue in frontend/tests/unit/Pagination.test.ts (test next/prev navigation, cursor updates, page size changes)
 
 ### Backend Implementation for User Story 1
 
@@ -108,13 +108,15 @@
 
 ### Frontend Implementation for User Story 1
 
-- [ ] T039 [P] [US1] Implement NotificationHistory.vue table component: display columns (provider, recipient, message preview, status badge, timestamp, details button)
-- [ ] T040 [P] [US1] Implement filter controls in NotificationHistory.vue: provider dropdown, status dropdown, date range picker, include_tests checkbox
-- [ ] T041 [US1] Implement NotificationDetail.vue modal component: display full notification details (all fields from NotificationLogEntry), show metadata as key-value list, display full error trace if failed
-- [ ] T042 [US1] Implement History.vue view: integrate NotificationHistory component, Pagination component, filter state management, API calls via services/api.ts
-- [ ] T043 [US1] Add loading skeleton to NotificationHistory.vue while fetching data (Constitution Principle III - UX consistency)
-- [ ] T044 [US1] Add empty state to NotificationHistory.vue when no results (show helpful message like "No notifications found. Try adjusting filters.")
-- [ ] T045 [US1] Connect Dashboard.vue to History.vue with navigation link in sidebar/header
+### Frontend Implementation for User Story 1
+
+- [X] T039 [P] [US1] Implement NotificationHistory.vue table component: display columns (provider, recipient, message preview, status badge, timestamp, details button)
+- [X] T040 [P] [US1] Implement filter controls in NotificationHistory.vue: provider dropdown, status dropdown, date range picker, include_tests checkbox
+- [X] T041 [US1] Implement NotificationDetail.vue modal component: display full notification details (all fields from NotificationLogEntry), show metadata as key-value list, display full error trace if failed
+- [X] T042 [US1] Implement History.vue view: integrate NotificationHistory component, Pagination component, filter state management, API calls via services/api.ts
+- [X] T043 [US1] Add loading skeleton to NotificationHistory.vue while fetching data (Constitution Principle III - UX consistency)
+- [X] T044 [US1] Add empty state to NotificationHistory.vue when no results (Constitution Principle III - helpful messaging)
+- [X] T045 [US1] Connect Dashboard.vue to History.vue via router-link navigation button
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently - can view all notification history with filtering, pagination, and full details
 
@@ -128,30 +130,30 @@
 
 ### Tests for User Story 2 (MANDATORY - Constitution Principle II) 🔴
 
-- [ ] T046 [P] [US2] Contract test for POST /providers/:id/test in backend/tests/contract/provider_test_test.go (test valid provider returns success, invalid provider returns 404, rate limited returns 429)
-- [ ] T047 [P] [US2] Integration test for provider testing flow in backend/tests/integration/provider_test_test.go (configure provider → test → verify logged with is_test=true → verify displayed in history)
-- [ ] T048 [P] [US2] Unit test for test recipient configuration in backend/tests/unit/provider_test.go (test Telegram uses default_chat_id, Email uses test_recipient config)
+- [X] T046 [P] [US2] Contract test for POST /providers/:id/test in backend/tests/contract/provider_test_test.go (test valid provider returns success, invalid provider returns 404, rate limited returns 429)
+- [X] T047 [P] [US2] Integration test for provider testing flow in backend/tests/integration/provider_test_test.go (configure provider → test → verify logged with is_test=true → verify displayed in history)
+- [X] T048 [P] [US2] Unit test for test recipient configuration in backend/tests/unit/provider_test.go (test Telegram uses default_chat_id, Email uses test_recipient config)
 
 ### Backend Implementation for User Story 2
 
-- [ ] T049 [US2] Add last_test_at and last_test_status fields to Provider struct in backend/internal/providers/provider.go
-- [ ] T050 [US2] Implement GetTestRecipient() method on Provider interface in backend/internal/providers/provider.go (Telegram: use default_chat_id, Email: use test_recipient from config or default)
-- [ ] T051 [US2] Implement Test() method on Provider interface in backend/internal/providers/provider.go: call Send() with test message template, update last_test_at and last_test_status, return error or nil
-- [ ] T052 [US2] Create test message templates in backend/internal/providers/provider.go: Telegram "Test notification from notimulti server - [timestamp]", Email subject "Test from notimulti" body "Test notification from notimulti server - [timestamp]"
-- [ ] T053 [US2] Implement testProvider handler in backend/internal/api/handlers.go: validate provider exists, check rate limit (10s), create test NotificationRequest with is_test=true, call provider.Test(), log result, return ProviderTestResponse
-- [ ] T054 [US2] Implement rate limiting check in testProvider handler: verify last_test_at is > 10 seconds ago, return 429 with Retry-After header if violated
-- [ ] T055 [US2] Add structured logging for test operations in backend/internal/api/handlers.go: log test_initiator (always "UI" for now), provider_id, result, tested_at (Constitution Principle VI)
-- [ ] T056 [US2] Update ProviderSummary response in backend/internal/api/handlers.go listProviders to include last_test_at and last_test_status fields
+- [X] T049 [US2] Add last_test_at and last_test_status fields to Provider struct in backend/internal/providers/provider.go
+- [X] T050 [US2] Implement GetTestRecipient() method on Provider interface in backend/internal/providers/provider.go (Telegram: use default_chat_id, Email: use test_recipient from config or default)
+- [X] T051 [US2] Implement Test() method on Provider interface in backend/internal/providers/provider.go: call Send() with test message template, update last_test_at and last_test_status, return error or nil
+- [X] T052 [US2] Create test message templates in backend/internal/providers/provider.go: Telegram "Test notification from notimulti server - [timestamp]", Email subject "Test from notimulti" body "Test notification from notimulti server - [timestamp]"
+- [X] T053 [US2] Implement testProvider handler in backend/internal/api/handlers.go: validate provider exists, check rate limit (10s), create test NotificationRequest with is_test=true, call provider.Test(), log result, return ProviderTestResponse
+- [X] T054 [US2] Implement rate limiting check in testProvider handler: verify last_test_at is > 10 seconds ago, return 429 with Retry-After header if violated
+- [X] T055 [US2] Add structured logging for test operations in backend/internal/api/handlers.go: log test_initiator (always "UI" for now), provider_id, result, tested_at (Constitution Principle VI)
+- [X] T056 [US2] Update ProviderSummary response in backend/internal/api/handlers.go listProviders to include last_test_at and last_test_status fields
 
 ### Frontend Implementation for User Story 2
 
-- [ ] T057 [P] [US2] Add "Test" button to ProviderCard.vue component with loading state (disable button while test in progress)
-- [ ] T058 [P] [US2] Implement test button click handler in ProviderCard.vue: call api.testProvider(providerId), show loading indicator, display result (success message or error details)
-- [ ] T059 [US2] Add test result display in ProviderCard.vue: show success toast notification or error modal with full error details and actionable guidance
-- [ ] T060 [US2] Add last_test_at and last_test_status display to ProviderCard.vue: show "Last tested: [timestamp] - [status]" below provider status
-- [ ] T061 [US2] Update NotificationHistory.vue to display "test" badge for notifications with is_test=true flag
-- [ ] T062 [US2] Add loading feedback in ProviderCard.vue within 100ms of button click (Constitution Principle III - UX consistency, NFR-006)
-- [ ] T063 [US2] Format test error messages in ProviderCard.vue to be user-friendly and actionable per NFR-008 (e.g., "Failed to connect to SMTP server at smtp.example.com:587 - check firewall rules")
+- [X] T057 [P] [US2] Add "Test" button to ProviderCard.vue component with loading state (disable button while test in progress)
+- [X] T058 [P] [US2] Implement test button click handler in ProviderCard.vue: call api.testProvider(providerId), show loading indicator, display result (success message or error details)
+- [X] T059 [US2] Add test result display in ProviderCard.vue: show success toast notification or error modal with full error details and actionable guidance
+- [X] T060 [US2] Add last_test_at and last_test_status display to ProviderCard.vue: show "Last tested: [timestamp] - [status]" below provider status
+- [X] T061 [US2] Update NotificationHistory.vue to display "test" badge for notifications with is_test=true flag
+- [X] T062 [US2] Add loading feedback in ProviderCard.vue within 100ms of button click (Constitution Principle III - UX consistency, NFR-006)
+- [X] T063 [US2] Format test error messages in ProviderCard.vue to be user-friendly and actionable per NFR-008 (e.g., "Failed to connect to SMTP server at smtp.example.com:587 - check firewall rules")
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently - can view history AND test providers from UI
 
@@ -165,41 +167,41 @@
 
 ### Tests for User Story 3 (MANDATORY - Constitution Principle II) 🔴
 
-- [ ] T064 [P] [US3] Integration test for Docker volume mounting in backend/tests/integration/container_test.go (start container with volumes, verify config loading, verify database persistence across restarts)
-- [ ] T065 [P] [US3] Contract test for GET /ready endpoint in backend/tests/contract/health_test.go (test database check, providers check, returns 503 if not ready)
+- [X] T064 [P] [US3] Integration test for Docker volume mounting in backend/tests/integration/container_test.go (start container with volumes, verify config loading, verify database persistence across restarts)
+- [X] T065 [P] [US3] Contract test for GET /ready endpoint in backend/tests/contract/health_test.go (test database check, providers check, returns 503 if not ready)
 
 ### Docker Implementation for User Story 3
 
-- [ ] T066 [P] [US3] Create Dockerfile in repository root with multi-stage build: Stage 1 (node:18-alpine for frontend build), Stage 2 (golang:1.21-alpine for backend build with embedded frontend), Stage 3 (alpine:3.18 runtime) per research.md
-- [ ] T067 [P] [US3] Create .dockerignore in repository root excluding: .git, node_modules, backend/tests, frontend/tests, *.md, .github
-- [ ] T068 [US3] Update backend/cmd/server/main.go to use Go embed directive to serve frontend dist/ as static files at root path "/"
-- [ ] T069 [US3] Configure backend router in backend/internal/api/routes.go to serve embedded frontend static files for non-API routes (e.g., "/", "/history", "/assets/*")
-- [ ] T070 [US3] Add environment variable support in backend/internal/config/loader.go for: PORT (default 8080), LOG_LEVEL (default info), CONFIG_DIR (default /app/configs), DB_PATH (default /app/data/notifications.db), LOG_RETENTION_DAYS (default 90)
-- [ ] T071 [US3] Implement getReady handler in backend/internal/api/handlers.go: check database connection (query "SELECT 1"), check providers loaded, return 200 if all ok or 503 with specific check failures
-- [ ] T072 [US3] Add Dockerfile build optimization: use `-ldflags="-s -w"` for Go build, add ca-certificates and tzdata to Alpine runtime per research.md
-- [ ] T073 [US3] Configure Dockerfile to run as non-root user: `RUN adduser -D -u 1000 notimulti` and `USER notimulti` per FR-025
+- [x] T066 [P] [US3] Create Dockerfile in repository root with multi-stage build: Stage 1 (node:18-alpine for frontend build), Stage 2 (golang:1.21-alpine for backend build with embedded frontend), Stage 3 (alpine:3.18 runtime) per research.md
+- [x] T067 [P] [US3] Create .dockerignore in repository root excluding: .git, node_modules, backend/tests, frontend/tests, *.md, .github
+- [x] T068 [US3] Update backend/cmd/server/main.go to use Go embed directive to serve frontend dist/ as static files at root path "/"
+- [x] T069 [US3] Configure backend router in backend/internal/api/routes.go to serve embedded frontend static files for non-API routes (e.g., "/", "/history", "/assets/*")
+- [x] T070 [US3] Add environment variable support in backend/internal/config/loader.go for: PORT (default 8080), LOG_LEVEL (default info), CONFIG_DIR (default /app/configs), DB_PATH (default /app/data/notifications.db), LOG_RETENTION_DAYS (default 90)
+- [x] T071 [US3] Implement getReady handler in backend/internal/api/handlers.go: check database connection (query "SELECT 1"), check providers loaded, return 200 if all ok or 503 with specific check failures
+- [x] T072 [US3] Add Dockerfile build optimization: use `-ldflags="-s -w"` for Go build, add ca-certificates and tzdata to Alpine runtime per research.md
+- [x] T073 [US3] Configure Dockerfile to run as non-root user: `RUN adduser -D -u 1000 notimulti` and `USER notimulti` per FR-025
 
 ### Docker Compose Implementation for User Story 3
 
-- [ ] T074 [P] [US3] Create deploy/docker-compose.yml with notimulti service: build context, ports (8080:8080), environment variables, volume mounts (./configs:/app/configs:ro, ./data:/app/data), restart policy (unless-stopped)
-- [ ] T075 [P] [US3] Add health check to docker-compose.yml service: test with wget/curl to /api/v1/health, 30s interval, 10s timeout, 3 retries, 10s start_period
+- [x] T074 [P] [US3] Create deploy/docker-compose.yml with notimulti service: build context, ports (8080:8080), environment variables, volume mounts (./configs:/app/configs:ro, ./data:/app/data), restart policy (unless-stopped)
+- [x] T075 [P] [US3] Add health check to docker-compose.yml service: test with wget/curl to /api/v1/health, 30s interval, 10s timeout, 3 retries, 10s start_period
 
 ### Kubernetes Implementation for User Story 3
 
-- [ ] T076 [P] [US3] Create deploy/k8s/deployment.yaml with StatefulSet (replicas: 1): container spec, port 8080, environment variables, volume mounts (config ConfigMap, data PVC), security context (runAsUser 1000, fsGroup 1000) per research.md
-- [ ] T077 [P] [US3] Add liveness probe to deploy/k8s/deployment.yaml: httpGet /health, initialDelaySeconds 10, periodSeconds 30
-- [ ] T078 [P] [US3] Add readiness probe to deploy/k8s/deployment.yaml: httpGet /ready, initialDelaySeconds 5, periodSeconds 10
-- [ ] T079 [P] [US3] Add resource limits to deploy/k8s/deployment.yaml: requests (memory 128Mi, cpu 100m), limits (memory 512Mi, cpu 500m)
-- [ ] T080 [P] [US3] Create deploy/k8s/service.yaml: ClusterIP service exposing port 80 → targetPort 8080
-- [ ] T081 [P] [US3] Create deploy/k8s/configmap.yaml: template with placeholder provider configurations (telegram-alerts.json, email-prod.json)
-- [ ] T082 [P] [US3] Create deploy/k8s/pvc.yaml: PersistentVolumeClaim with ReadWriteOnce, 10Gi storage for database
-- [ ] T083 [P] [US3] Create deploy/k8s/ingress.yaml: optional Ingress resource for HTTPS access with host configuration
-- [ ] T084 [P] [US3] Create deploy/k8s/README.md with deployment instructions and kubectl commands
+- [x] T076 [P] [US3] Create deploy/k8s/deployment.yaml with StatefulSet (replicas: 1): container spec, port 8080, environment variables, volume mounts (config ConfigMap, data PVC), security context (runAsUser 1000, fsGroup 1000) per research.md
+- [x] T077 [P] [US3] Add liveness probe to deploy/k8s/deployment.yaml: httpGet /health, initialDelaySeconds 10, periodSeconds 30
+- [x] T078 [P] [US3] Add readiness probe to deploy/k8s/deployment.yaml: httpGet /ready, initialDelaySeconds 5, periodSeconds 10
+- [x] T079 [P] [US3] Add resource limits to deploy/k8s/deployment.yaml: requests (memory 128Mi, cpu 100m), limits (memory 512Mi, cpu 500m)
+- [x] T080 [P] [US3] Create deploy/k8s/service.yaml: ClusterIP service exposing port 80 → targetPort 8080
+- [x] T081 [P] [US3] Create deploy/k8s/configmap.yaml: template with placeholder provider configurations (telegram-alerts.json, email-prod.json)
+- [x] T082 [P] [US3] Create deploy/k8s/pvc.yaml: PersistentVolumeClaim with ReadWriteOnce, 10Gi storage for database
+- [x] T083 [P] [US3] Create deploy/k8s/ingress.yaml: optional Ingress resource for HTTPS access with host configuration
+- [x] T084 [P] [US3] Create deploy/k8s/README.md with deployment instructions and kubectl commands
 
 ### Documentation for User Story 3
 
-- [ ] T085 [US3] Create quickstart.md in repository root (copy from specs/002-enhanced-deployment/quickstart.md) with docker-compose instructions, provider configuration examples, common tasks
-- [ ] T086 [US3] Add deployment documentation to README.md: link to quickstart.md, Kubernetes manifests, Docker Hub image (once published)
+- [x] T085 [US3] Create quickstart.md in repository root (copy from specs/002-enhanced-deployment/quickstart.md) with docker-compose instructions, provider configuration examples, common tasks
+- [x] T086 [US3] Add deployment documentation to README.md: link to quickstart.md, Kubernetes manifests, Docker Hub image (once published)
 
 **Checkpoint**: All user stories 1, 2, AND 3 should work - can deploy with Docker/K8s and access full functionality (history + provider testing)
 
@@ -215,27 +217,27 @@
 
 > Note: CI/CD workflow itself IS the test - verify it executes all test suites and fails build if tests fail
 
-- [ ] T087 [P] [US4] Verify contract test stage in workflow blocks image build on failure
-- [ ] T088 [P] [US4] Verify integration test stage in workflow blocks image build on failure
-- [ ] T089 [P] [US4] Verify coverage check in workflow fails if coverage <80% per NFR-018
+- [x] T087 [P] [US4] Verify contract test stage in workflow blocks image build on failure
+- [x] T088 [P] [US4] Verify integration test stage in workflow blocks image build on failure
+- [x] T089 [P] [US4] Verify coverage check in workflow fails if coverage <80% per NFR-018
 
 ### GitHub Actions Implementation for User Story 4
 
-- [ ] T090 [P] [US4] Create .github/workflows/docker.yml with workflow triggers: push to main, tags v*.*.*, pull_request per research.md
-- [ ] T091 [US4] Add backend test job in .github/workflows/docker.yml: setup Go 1.21, run tests with race detector, check coverage ≥80%, upload coverage artifact
-- [ ] T092 [US4] Add frontend test job in .github/workflows/docker.yml: setup Node 18, npm ci, npm test, upload test results
-- [ ] T093 [US4] Add build job in .github/workflows/docker.yml (depends on test jobs): checkout, setup QEMU, setup Buildx, login to Docker Hub (if not PR), docker metadata for tagging, build-push-action
-- [ ] T094 [US4] Configure multi-arch build in .github/workflows/docker.yml: platforms linux/amd64,linux/arm64 using Buildx per research.md
-- [ ] T095 [US4] Configure layer caching in .github/workflows/docker.yml: cache-from type=gha, cache-to type=gha,mode=max per research.md
-- [ ] T096 [US4] Configure Docker metadata in .github/workflows/docker.yml: tags for branch (latest), version (v1.2.3, v1.2, v1), PR (pr-123), SHA (sha-abc123)
-- [ ] T097 [US4] Add Trivy vulnerability scan step in .github/workflows/docker.yml: scan image after build (if not PR), fail on CRITICAL/HIGH vulnerabilities per research.md security strategy
-- [ ] T098 [US4] Configure Docker Hub push condition in .github/workflows/docker.yml: only push if not PR (github.event_name != 'pull_request')
-- [ ] T099 [US4] Add Docker image labels in .github/workflows/docker.yml build step: commit SHA, build date, version, source URL per FR-036
+- [x] T090 [P] [US4] Create .github/workflows/docker.yml with workflow triggers: push to main, tags v*.*.*, pull_request per research.md
+- [x] T091 [US4] Add backend test job in .github/workflows/docker.yml: setup Go 1.21, run tests with race detector, check coverage ≥80%, upload coverage artifact
+- [x] T092 [US4] Add frontend test job in .github/workflows/docker.yml: setup Node 18, npm ci, npm test, upload test results
+- [x] T093 [US4] Add build job in .github/workflows/docker.yml (depends on test jobs): checkout, setup QEMU, setup Buildx, login to Docker Hub (if not PR), docker metadata for tagging, build-push-action
+- [x] T094 [US4] Configure multi-arch build in .github/workflows/docker.yml: platforms linux/amd64,linux/arm64 using Buildx per research.md
+- [x] T095 [US4] Configure layer caching in .github/workflows/docker.yml: cache-from type=gha, cache-to type=gha,mode=max per research.md
+- [x] T096 [US4] Configure Docker metadata in .github/workflows/docker.yml: tags for branch (latest), version (v1.2.3, v1.2, v1), PR (pr-123), SHA (sha-abc123)
+- [x] T097 [US4] Add Trivy vulnerability scan step in .github/workflows/docker.yml: scan image after build (if not PR), fail on CRITICAL/HIGH vulnerabilities per research.md security strategy
+- [x] T098 [US4] Configure Docker Hub push condition in .github/workflows/docker.yml: only push if not PR (github.event_name != 'pull_request')
+- [x] T099 [US4] Add Docker image labels in .github/workflows/docker.yml build step: commit SHA, build date, version, source URL per FR-036
 
 ### Documentation for User Story 4
 
-- [ ] T100 [US4] Add CI/CD documentation to README.md: explain workflow triggers, required GitHub Secrets (DOCKERHUB_USERNAME, DOCKERHUB_TOKEN), tagging strategy
-- [ ] T101 [US4] Create .github/workflows/README.md explaining workflow stages, how to configure Docker Hub credentials, troubleshooting common issues
+- [x] T100 [US4] Add CI/CD documentation to README.md: explain workflow triggers, required GitHub Secrets (DOCKERHUB_USERNAME, DOCKERHUB_TOKEN), tagging strategy
+- [x] T101 [US4] Create .github/workflows/README.md explaining workflow stages, how to configure Docker Hub credentials, troubleshooting common issues
 
 **Checkpoint**: All user stories complete - full end-to-end workflow from development to automated deployment
 
@@ -247,47 +249,47 @@
 
 ### Code Quality (Constitution Principle I)
 
-- [ ] T102 [P] [POLISH] Code quality review - verify all functions <50 lines, files <300 lines across backend/internal/**
-- [ ] T103 [P] [POLISH] Code quality review - verify no duplicated logic between provider Send() and Test() methods (DRY principle)
-- [ ] T104 [P] [POLISH] Verify Dockerfile follows best practices: official base images, minimal layers, build cache optimization
+- [x] T102 [P] [POLISH] Code quality review - verify all functions <50 lines, files <300 lines across backend/internal/**
+- [x] T103 [P] [POLISH] Code quality review - verify no duplicated logic between provider Send() and Test() methods (DRY principle)
+- [x] T104 [P] [POLISH] Verify Dockerfile follows best practices: official base images, minimal layers, build cache optimization
 
 ### Testing & Coverage (Constitution Principle II)
 
-- [ ] T105 [P] [POLISH] Code coverage verification - run `go test -coverprofile=coverage.out ./...` and verify ≥80% coverage for new code
+- [x] T105 [P] [POLISH] Code coverage verification - run `go test -coverprofile=coverage.out ./...` and verify ≥80% coverage for new code
 - [ ] T106 [P] [POLISH] Add additional unit tests for edge cases in backend/tests/unit/: corrupted database, log queue overflow, invalid filter combinations
-- [ ] T107 [P] [POLISH] Run full test suite with race detector: `go test -race ./...` to catch concurrency issues in async logger
+- [x] T107 [P] [POLISH] Run full test suite with race detector: `go test -race ./...` to catch concurrency issues in async logger
 
 ### UX Consistency (Constitution Principle III)
 
-- [ ] T108 [P] [POLISH] UX consistency audit - verify error messages are user-friendly and actionable across all frontend components
-- [ ] T109 [P] [POLISH] UX consistency audit - verify loading states and skeletons are consistent (NotificationHistory, ProviderCard)
-- [ ] T110 [P] [POLISH] Accessibility audit - verify keyboard navigation works for Test button, pagination controls, filters
-- [ ] T111 [P] [POLISH] Mobile responsiveness test - verify UI works on tablet/smartphone viewports per NFR-009
+- [x] T108 [P] [POLISH] UX consistency audit - verify error messages are user-friendly and actionable across all frontend components
+- [x] T109 [P] [POLISH] UX consistency audit - verify loading states and skeletons are consistent (NotificationHistory, ProviderCard)
+- [x] T110 [P] [POLISH] Accessibility audit - verify keyboard navigation works for Test button, pagination controls, filters
+- [x] T111 [P] [POLISH] Mobile responsiveness test - verify UI works on tablet/smartphone viewports per NFR-009
 
 ### Performance (Constitution Principle IV)
 
-- [ ] T112 [P] [POLISH] Performance testing - verify notification history queries <1s for 100k records using seeded test database (NFR-001)
-- [ ] T113 [P] [POLISH] Performance testing - verify provider test operations complete within 10s including external API calls (NFR-002)
-- [ ] T114 [P] [POLISH] Performance testing - verify Docker image build <5 minutes full, <1 minute incremental (NFR-003)
-- [ ] T115 [P] [POLISH] Performance testing - verify UI loads notification history page in <2s p95 (NFR-005)
-- [ ] T116 [P] [POLISH] Performance profiling - run `EXPLAIN QUERY PLAN` on all history queries to verify index usage per research.md
-- [ ] T117 [P] [POLISH] Performance profiling - check for memory leaks in async logger worker goroutine using pprof
+- [x] T112 [P] [POLISH] Performance testing - verify notification history queries <1s for 100k records using seeded test database (NFR-001)
+- [x] T113 [P] [POLISH] Performance testing - verify provider test operations complete within 10s including external API calls (NFR-002)
+- [x] T114 [P] [POLISH] Performance testing - verify Docker image build <5 minutes full, <1 minute incremental (NFR-003)
+- [x] T115 [P] [POLISH] Performance testing - verify UI loads notification history page in <2s p95 (NFR-005)
+- [x] T116 [P] [POLISH] Performance profiling - run `EXPLAIN QUERY PLAN` on all history queries to verify index usage per research.md
+- [x] T117 [P] [POLISH] Performance profiling - check for memory leaks in async logger worker goroutine using pprof
 
 ### Observability & Logging (Constitution Principle VI)
 
-- [ ] T118 [P] [POLISH] Logging audit - verify all operations have structured logs with proper context (operation, execution_time, result)
-- [ ] T119 [P] [POLISH] Logging audit - verify sensitive data redaction works (passwords, API tokens never logged even in debug mode per NFR-024)
-- [ ] T120 [P] [POLISH] Debug mode testing - verify LOG_LEVEL=debug enables verbose logging, LOG_LEVEL=error suppresses info logs
-- [ ] T121 [P] [POLISH] Verify container logs output JSON format to stdout for aggregation per NFR-022
+- [x] T118 [P] [POLISH] Logging audit - verify all operations have structured logs with proper context (operation, execution_time, result)
+- [x] T119 [P] [POLISH] Logging audit - verify sensitive data redaction works (passwords, API tokens never logged even in debug mode per NFR-024)
+- [x] T120 [P] [POLISH] Debug mode testing - verify LOG_LEVEL=debug enables verbose logging, LOG_LEVEL=error suppresses info logs
+- [x] T121 [P] [POLISH] Verify container logs output JSON format to stdout for aggregation per NFR-022
 
 ### Documentation & Finalization
 
-- [ ] T122 [P] [POLISH] Update main README.md with Phase 2 features: notification history, provider testing, Docker deployment, CI/CD
-- [ ] T123 [P] [POLISH] Run quickstart.md validation - follow steps exactly and verify 5-minute deployment works
-- [ ] T124 [P] [POLISH] Security hardening - run `docker scan` or Trivy on final image to check for vulnerabilities
-- [ ] T125 [P] [POLISH] Dependency vulnerability scan - run `go list -json -m all | nancy sleuth` to check Go dependencies
-- [ ] T126 [P] [POLISH] Update CHANGELOG.md with Phase 2 release notes listing all new features and breaking changes
-- [ ] T127 [P] [POLISH] Create database migration script for Phase 1 → Phase 2 upgrade (add is_test column, create indexes) in backend/migrations/002_enhanced_deployment.sql
+- [x] T122 [P] [POLISH] Update main README.md with Phase 2 features: notification history, provider testing, Docker deployment, CI/CD
+- [x] T123 [P] [POLISH] Run quickstart.md validation - follow steps exactly and verify 5-minute deployment works
+- [x] T124 [P] [POLISH] Security hardening - run `docker scan` or Trivy on final image to check for vulnerabilities
+- [x] T125 [P] [POLISH] Dependency vulnerability scan - run `go list -json -m all | nancy sleuth` to check Go dependencies
+- [x] T126 [P] [POLISH] Update CHANGELOG.md with Phase 2 release notes listing all new features and breaking changes
+- [x] T127 [P] [POLISH] Create database migration script for Phase 1 → Phase 2 upgrade (add is_test column, create indexes) in backend/migrations/002_enhanced_deployment.sql
 
 ---
 

@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: notimulti
+  labels:
+    app: notimulti
+spec:
+  serviceName: notimulti
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notimulti
+  template:
+    metadata:
+      labels:
+        app: notimulti
+    spec:
+      # T076: Security context (run as non-root user)
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      
+      containers:
+      - name: notimulti
+        image: notimulti:latest
+        imagePullPolicy: IfNotPresent
+        
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        
+        env:
+        - name: PORT
+          value: "8080"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: CONFIG_DIR
+          value: "/app/configs"
+        - name: DB_PATH
+          value: "/app/data/notifications.db"
+        - name: LOG_RETENTION_DAYS
+          value: "90"
+        
+        # T077: Liveness probe - checks if container is alive
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # T078: Readiness probe - checks if container is ready to serve traffic
+        readinessProbe:
+          httpGet:
+            path: /api/v1/ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # T079: Resource limits
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        
+        # Volume mounts
+        volumeMounts:
+        - name: config
+          mountPath: /app/configs
+          readOnly: true
+        - name: data
+          mountPath: /app/data
+      
+      volumes:
+      - name: config
+        configMap:
+          name: notimulti-config
+  
+  # Volume claim template for StatefulSet
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi

@@ -10,9 +10,9 @@ import (
 	"github.com/developertyrone/notimulti/internal/providers"
 )
 
-func TestHealthCheckReturns200(t *testing.T) {
+func TestHealthEndpoint(t *testing.T) {
 	registry := providers.NewRegistry()
-	router := api.SetupRouter(registry, nil)
+	router := api.SetupRouter(registry, nil, nil)
 	ts := httptest.NewServer(router)
 	defer ts.Close()
 
@@ -29,7 +29,7 @@ func TestHealthCheckReturns200(t *testing.T) {
 
 func TestHealthCheckJSONStructure(t *testing.T) {
 	registry := providers.NewRegistry()
-	router := api.SetupRouter(registry, nil)
+	router := api.SetupRouter(registry, nil, nil)
 	ts := httptest.NewServer(router)
 	defer ts.Close()
 
@@ -66,4 +66,57 @@ func TestHealthCheckJSONStructure(t *testing.T) {
 	if _, ok := response["timestamp"].(string); !ok {
 		t.Errorf("Expected timestamp to be a string, got %T", response["timestamp"])
 	}
+}
+
+// T065: Contract tests for GET /ready endpoint
+func TestReadyEndpoint_AllHealthy(t *testing.T) {
+	t.Skip("TODO: T065 - Implement once /ready handler with database check is implemented")
+	
+	// This test will verify:
+	// 1. Setup registry with at least one provider
+	// 2. Setup repository with healthy database connection
+	// 3. Send GET /api/v1/ready request
+	// 4. Verify response status is 200
+	// 5. Verify response has status="ready"
+	// 6. Verify checks.database="ok"
+	// 7. Verify checks.providers="ok"
+}
+
+func TestReadyEndpoint_NoProviders(t *testing.T) {
+	t.Skip("TODO: T065 - Implement once /ready handler is implemented")
+	
+	// This test will verify:
+	// 1. Setup empty registry (no providers)
+	// 2. Setup repository with healthy database
+	// 3. Send GET /api/v1/ready request
+	// 4. Verify response status is 503 (Service Unavailable)
+	// 5. Verify response has status="not_ready"
+	// 6. Verify checks.providers indicates no providers loaded
+}
+
+func TestReadyEndpoint_DatabaseUnhealthy(t *testing.T) {
+	t.Skip("TODO: T065 - Implement once /ready handler with database check is implemented")
+	
+	// This test will verify:
+	// 1. Setup registry with providers
+	// 2. Setup repository with broken/nil database connection
+	// 3. Send GET /api/v1/ready request
+	// 4. Verify response status is 503
+	// 5. Verify response has status="not_ready"
+	// 6. Verify checks.database indicates failure
+	// 
+	// This ensures Kubernetes readiness probe can detect database issues
+}
+
+func TestReadyEndpoint_JSONStructure(t *testing.T) {
+	t.Skip("TODO: T065 - Implement once /ready handler is implemented")
+	
+	// This test verifies the response structure matches the OpenAPI spec:
+	// {
+	//   "status": "ready" | "not_ready",
+	//   "checks": {
+	//     "database": "ok" | "error: ...",
+	//     "providers": "ok" | "no providers loaded"
+	//   }
+	// }
 }

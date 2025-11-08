@@ -10,9 +10,11 @@ import (
 
 // TelegramProvider implements the Provider interface for Telegram Bot API
 type TelegramProvider struct {
-	id     string
-	bot    *tgbotapi.BotAPI
-	config *TelegramConfig
+	id             string
+	bot            *tgbotapi.BotAPI
+	config         *TelegramConfig
+	lastTestAt     *time.Time
+	lastTestStatus string
 }
 
 // NewTelegramProvider creates a new Telegram provider instance
@@ -122,16 +124,20 @@ func (tp *TelegramProvider) GetStatus() *ProviderStatus {
 	user, err := tp.bot.GetMe()
 	if err != nil {
 		return &ProviderStatus{
-			Status:       StatusError,
-			LastUpdated:  time.Now(),
-			ErrorMessage: fmt.Sprintf("bot connectivity check failed: %v", err),
+			Status:         StatusError,
+			LastUpdated:    time.Now(),
+			ErrorMessage:   fmt.Sprintf("bot connectivity check failed: %v", err),
+			LastTestAt:     tp.lastTestAt,     // T049
+			LastTestStatus: tp.lastTestStatus, // T049
 		}
 	}
 
 	return &ProviderStatus{
-		Status:       StatusActive,
-		LastUpdated:  time.Now(),
-		ErrorMessage: fmt.Sprintf("Bot: @%s (%s)", user.UserName, user.FirstName),
+		Status:         StatusActive,
+		LastUpdated:    time.Now(),
+		ErrorMessage:   fmt.Sprintf("Bot: @%s (%s)", user.UserName, user.FirstName),
+		LastTestAt:     tp.lastTestAt,     // T049
+		LastTestStatus: tp.lastTestStatus, // T049
 	}
 }
 
@@ -143,6 +149,49 @@ func (tp *TelegramProvider) GetID() string {
 // GetType returns the provider type
 func (tp *TelegramProvider) GetType() string {
 	return "telegram"
+}
+
+// GetTestRecipient returns the default_chat_id for test notifications (T050)
+func (tp *TelegramProvider) GetTestRecipient() (string, error) {
+	if tp.config.DefaultChatID == "" {
+		return "", fmt.Errorf("default_chat_id not configured for Telegram provider %s", tp.id)
+	}
+	return tp.config.DefaultChatID, nil
+}
+
+// Test sends a test notification and updates last test metadata (T051)
+func (tp *TelegramProvider) Test(ctx context.Context) error {
+	// Get test recipient
+	recipient, err := tp.GetTestRecipient()
+	if err != nil {
+		return fmt.Errorf("failed to get test recipient: %w", err)
+	}
+
+	// Create test notification with timestamp (T052)
+	timestamp := time.Now().UTC().Format("2006-01-02 15:04:05 MST")
+	testNotification := &Notification{
+		ID:         fmt.Sprintf("test-%s-%d", tp.id, time.Now().Unix()),
+		ProviderID: tp.id,
+		Recipient:  recipient,
+		Message:    fmt.Sprintf("Test notification from notimulti server - %s", timestamp),
+		Priority:   PriorityNormal,
+		Timestamp:  time.Now(),
+	}
+
+	// Send test notification
+	err = tp.Send(ctx, testNotification)
+	
+	// Update last test metadata (T051)
+	now := time.Now()
+	tp.lastTestAt = &now
+	
+	if err != nil {
+		tp.lastTestStatus = "failed"
+		return fmt.Errorf("test notification failed: %w", err)
+	}
+	
+	tp.lastTestStatus = "success"
+	return nil
 }
 
 // Close performs cleanup (Telegram doesn't require explicit cleanup)

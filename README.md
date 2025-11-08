@@ -8,6 +8,44 @@
 
 ## 🚀 Quick Start
 
+**🐳 Docker Quick Start (Recommended)**
+
+Get up and running in under 5 minutes with Docker:
+
+```bash
+# Clone the repository
+git clone https://github.com/developertyrone/notimulti.git
+cd notimulti
+
+# Create a provider configuration
+mkdir -p configs
+cat > configs/telegram-example.json <<EOF
+{
+  "id": "telegram-example",
+  "type": "telegram",
+  "enabled": true,
+  "config": {
+    "bot_token": "YOUR_BOT_TOKEN",
+    "default_chat_id": "YOUR_CHAT_ID"
+  }
+}
+EOF
+
+# Start with Docker Compose
+docker-compose -f deploy/docker-compose.yml up -d
+
+# Access the web UI
+open http://localhost:8080
+```
+
+📖 **Full Docker Guide:** See [QUICKSTART.md](QUICKSTART.md)
+
+📦 **Kubernetes Deployment:** See [deploy/k8s/README.md](deploy/k8s/README.md)
+
+---
+
+**💻 Development Setup**
+
 ### Prerequisites
 
 - Go 1.21+
@@ -307,7 +345,98 @@ go test ./tests/unit/... -v
 
 ## 🚀 Production Deployment
 
-### Build Production Artifacts
+### 🐳 Docker Deployment
+
+**Recommended for production use.** The server is packaged as a single container with embedded frontend.
+
+```bash
+# Build the Docker image
+docker build -t notimulti:latest .
+
+# Run with Docker Compose
+docker-compose -f deploy/docker-compose.yml up -d
+```
+
+**Features:**
+- ✅ Multi-stage build (<100MB image size)
+- ✅ Non-root user (UID 1000)
+- ✅ Health checks for liveness/readiness
+- ✅ Volume mounting for configs and database
+- ✅ Automatic restart on failure
+
+📖 **Full Guide:** [QUICKSTART.md](QUICKSTART.md)
+
+---
+
+### ☸️ Kubernetes Deployment
+
+**For orchestrated production environments.**
+
+```bash
+# Apply Kubernetes manifests
+kubectl apply -f deploy/k8s/configmap.yaml
+kubectl apply -f deploy/k8s/deployment.yaml
+kubectl apply -f deploy/k8s/service.yaml
+
+# Optional: External access with Ingress
+kubectl apply -f deploy/k8s/ingress.yaml
+```
+
+**Includes:**
+- StatefulSet with database persistence
+- Liveness and readiness probes
+- Resource limits and security context
+- ConfigMap for provider configuration
+- Optional Ingress for HTTPS
+
+📦 **Full Guide:** [deploy/k8s/README.md](deploy/k8s/README.md)
+
+---
+
+### � CI/CD - Automated Builds
+
+**Automated Docker image builds with GitHub Actions.**
+
+Every push to `main` or version tag automatically:
+- ✅ Runs full test suite (backend + frontend)
+- ✅ Enforces 80% code coverage
+- ✅ Builds multi-arch Docker images (amd64, arm64)
+- ✅ Scans for security vulnerabilities
+- ✅ Pushes to Docker Hub
+
+**Quick Start:**
+```bash
+# Pull latest image
+docker pull developertyrone/notimulti:latest
+
+# Or specific version
+docker pull developertyrone/notimulti:1.0.0
+```
+
+**Release a New Version:**
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+# GitHub Actions builds and publishes automatically
+```
+
+**Required GitHub Secrets:**
+- `DOCKERHUB_USERNAME` - Your Docker Hub username
+- `DOCKERHUB_TOKEN` - Docker Hub access token ([create here](https://hub.docker.com/settings/security))
+
+🔧 **Full Guide:** [.github/workflows/README.md](.github/workflows/README.md)
+
+**Image Tags:**
+- `latest` - Latest main branch build
+- `1.2.3`, `1.2`, `1` - Semantic version tags
+- `sha-abc123` - Specific commit SHA
+- `pr-42` - Pull request builds (not pushed)
+
+---
+
+### �🖥️ Traditional Deployment
+
+Build Production Artifacts
 
 ```bash
 # Build backend binary

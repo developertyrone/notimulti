@@ -18,4 +18,10 @@ type Provider interface {
 
 	// Close performs cleanup operations and releases resources
 	Close() error
+
+	// GetTestRecipient returns the recipient to use for test notifications (T050)
+	GetTestRecipient() (string, error)
+
+	// Test sends a test notification and updates last test metadata (T051)
+	Test(ctx context.Context) error
 }

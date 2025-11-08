@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: notimulti-data
+  labels:
+    app: notimulti
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  # Optional: Specify storage class if needed
+  # storageClassName: standard

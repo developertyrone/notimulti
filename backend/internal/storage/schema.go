@@ -15,20 +15,22 @@ CREATE TABLE IF NOT EXISTS notification_logs (
     error_message TEXT,
     attempts INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    delivered_at DATETIME
+    delivered_at DATETIME,
+    is_test INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE INDEX IF NOT EXISTS idx_notification_logs_provider_id 
-    ON notification_logs(provider_id);
+-- Composite indexes for common query patterns (Phase 2 optimization)
+CREATE INDEX IF NOT EXISTS idx_provider_created 
+    ON notification_logs(provider_id, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_notification_logs_created_at 
-    ON notification_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_status_created 
+    ON notification_logs(status, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_notification_logs_status 
-    ON notification_logs(status);
+CREATE INDEX IF NOT EXISTS idx_type_created 
+    ON notification_logs(provider_type, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_notification_logs_provider_type 
-    ON notification_logs(provider_type);
+CREATE INDEX IF NOT EXISTS idx_created_id 
+    ON notification_logs(created_at DESC, id DESC);
 `
 
 // Status constants for notification logs

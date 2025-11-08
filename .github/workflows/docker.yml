@@ -1,0 +1,195 @@
+name: Docker Build & Publish
+
+# T090: Workflow triggers
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/notimulti
+
+jobs:
+  # T091: Backend test job
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Go 1.21
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: backend/go.sum
+      
+      - name: Install dependencies
+        working-directory: backend
+        run: go mod download
+      
+      - name: Run tests with race detector
+        working-directory: backend
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      
+      # T089: Verify coverage ≥80% per NFR-018
+      - name: Check coverage threshold
+        working-directory: backend
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "❌ Coverage ${COVERAGE}% is below 80% threshold"
+            exit 1
+          fi
+          echo "✅ Coverage ${COVERAGE}% meets 80% threshold"
+      
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.out
+          retention-days: 30
+      
+      - name: Upload coverage to Codecov (optional)
+        uses: codecov/codecov-action@v4
+        if: github.event_name != 'pull_request'
+        with:
+          files: backend/coverage.out
+          flags: backend
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # T092: Frontend test job
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      
+      - name: Run tests
+        working-directory: frontend
+        run: npm test
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: frontend/coverage/
+          retention-days: 30
+
+  # T093-T099: Build and push Docker image
+  build-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # T093: Setup QEMU for multi-arch builds
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      # T093: Setup Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      # T093: Login to Docker Hub (skip for PRs)
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      # T096: Docker metadata for tagging
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            # Tag with version for tags (v1.2.3 → 1.2.3, 1.2, 1, latest)
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # Tag with 'latest' for main branch
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Tag with PR number for pull requests
+            type=ref,event=pr,prefix=pr-
+            # Tag with commit SHA
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=Notimulti
+            org.opencontainers.image.description=Centralized notification server
+            org.opencontainers.image.vendor=developertyrone
+      
+      # T093, T094, T095, T096, T099: Build and push
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          # T094: Multi-arch build
+          platforms: linux/amd64,linux/arm64
+          # T098: Only push if not PR
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          # T099: Image labels
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          # T095: Layer caching
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      # T097: Trivy vulnerability scan
+      - name: Run Trivy vulnerability scanner
+        if: github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'  # Fail on CRITICAL/HIGH vulnerabilities
+      
+      - name: Upload Trivy results to GitHub Security
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+      
+      - name: Image digest
+        if: github.event_name != 'pull_request'
+        run: echo "Image pushed with digest ${{ steps.build-push.outputs.digest }}"

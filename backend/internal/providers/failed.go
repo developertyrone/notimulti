@@ -49,6 +49,16 @@ func (fp *FailedProvider) GetType() string {
 	return fp.providerType
 }
 
+// GetTestRecipient returns error for failed providers (T050)
+func (fp *FailedProvider) GetTestRecipient() (string, error) {
+	return "", fmt.Errorf("provider is in error state: %s", fp.errorMessage)
+}
+
+// Test returns error for failed providers (T051)
+func (fp *FailedProvider) Test(ctx context.Context) error {
+	return fmt.Errorf("cannot test provider in error state: %s", fp.errorMessage)
+}
+
 // Close does nothing for failed providers
 func (fp *FailedProvider) Close() error {
 	return nil

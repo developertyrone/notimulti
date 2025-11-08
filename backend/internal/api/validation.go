@@ -185,3 +185,85 @@ func isNumeric(s string) bool {
 
 	return true
 }
+
+// ValidateHistoryQueryParams validates notification history query parameters
+func ValidateHistoryQueryParams(providerType, status, dateFrom, dateTo string, pageSize int) []ValidationError {
+	var errors []ValidationError
+
+	// Validate provider_type if provided
+	if providerType != "" {
+		validTypes := map[string]bool{"telegram": true, "email": true}
+		if !validTypes[providerType] {
+			errors = append(errors, ValidationError{
+				Field:   "provider_type",
+				Message: fmt.Sprintf("provider_type must be one of: telegram, email (got '%s')", providerType),
+			})
+		}
+	}
+
+	// Validate status if provided
+	if status != "" {
+		validStatuses := map[string]bool{"pending": true, "sent": true, "failed": true, "retrying": true}
+		if !validStatuses[status] {
+			errors = append(errors, ValidationError{
+				Field:   "status",
+				Message: fmt.Sprintf("status must be one of: pending, sent, failed, retrying (got '%s')", status),
+			})
+		}
+	}
+
+	// Validate date_from format (ISO8601) if provided
+	if dateFrom != "" {
+		if !isValidISO8601Date(dateFrom) {
+			errors = append(errors, ValidationError{
+				Field:   "date_from",
+				Message: "date_from must be in ISO8601 format (e.g., 2025-11-01T00:00:00Z)",
+			})
+		}
+	}
+
+	// Validate date_to format (ISO8601) if provided
+	if dateTo != "" {
+		if !isValidISO8601Date(dateTo) {
+			errors = append(errors, ValidationError{
+				Field:   "date_to",
+				Message: "date_to must be in ISO8601 format (e.g., 2025-11-06T23:59:59Z)",
+			})
+		}
+	}
+
+	// Validate page_size range
+	if pageSize < 1 || pageSize > 100 {
+		errors = append(errors, ValidationError{
+			Field:   "page_size",
+			Message: fmt.Sprintf("page_size must be between 1 and 100 (got %d)", pageSize),
+		})
+	}
+
+	return errors
+}
+
+// ValidateTestRequest validates provider test request
+func ValidateTestRequest(providerID string, lastTestAt string) error {
+	if providerID == "" {
+		return fmt.Errorf("provider_id is required")
+	}
+
+	// Check rate limiting: last test must be > 10 seconds ago
+	// This would typically be checked against stored timestamps
+	// Implementation will be in the handler
+
+	return nil
+}
+
+// isValidISO8601Date checks if a string is a valid ISO8601 date format
+func isValidISO8601Date(dateStr string) bool {
+	if dateStr == "" {
+		return false
+	}
+
+	// Simple pattern check for ISO8601: YYYY-MM-DDTHH:MM:SSZ or with timezone offset
+	pattern := `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})$`
+	matched, _ := regexp.MatchString(pattern, dateStr)
+	return matched
+}
