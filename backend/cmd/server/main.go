@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"embed"
 	"fmt"
 	"net/http"
 	"os"
@@ -17,10 +16,6 @@ import (
 	"github.com/developertyrone/notimulti/internal/storage"
 	"github.com/joho/godotenv"
 )
-
-// T068: Embed frontend dist/ directory
-//go:embed dist
-var frontendDist embed.FS
 
 func main() {
 	// Load environment variables from .env file (if exists)
@@ -149,9 +144,8 @@ func main() {
 	watcher.Start()
 	logger.Info("Configuration watcher started", "directory", configDir)
 
-	// Setup router with registry, logger, repository, and embedded frontend (T068, T069)
+	// Setup API router
 	router := api.SetupRouter(registry, notifLogger, repo)
-	api.ServeFrontend(router, frontendDist)
 
 	// Get server port
 	// T070: Use PORT environment variable (standard for containers)
