@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/developertyrone/notimulti/internal/logging"
 	"github.com/developertyrone/notimulti/internal/providers"
 	"github.com/developertyrone/notimulti/internal/storage"
 	"github.com/gin-gonic/gin"
@@ -97,16 +98,25 @@ func HandleSendNotification(registry *providers.Registry, logger *storage.Notifi
 
 			// Log to database
 			if logger != nil {
-				status := "delivered"
+				status := storage.StatusSent
 				errorMsg := ""
+				deliveredAt := time.Now().Format(time.RFC3339)
 				if err != nil {
-					status = "failed"
+					status = storage.StatusFailed
 					errorMsg = err.Error()
+					deliveredAt = ""
 				}
 
-				if logErr := logger.LogNotification(notification, status, errorMsg, provider.GetType(), attempts); logErr != nil {
-					fmt.Printf("Failed to log notification %s: %v\n", notificationID, logErr)
+				logEntry := storage.LogEntry{
+					Notification: notification,
+					Status:       status,
+					ErrorMessage: errorMsg,
+					ProviderType: provider.GetType(),
+					Attempts:     attempts,
+					DeliveredAt:  deliveredAt,
+					IsTest:       false,
 				}
+				logger.Log(logEntry)
 			}
 
 			// Log to console for debugging
@@ -158,6 +168,14 @@ func HandleGetProviders(registry *providers.Registry) gin.HandlerFunc {
 				summary["error_message"] = status.ErrorMessage
 			}
 
+			// T056: Include last test metadata
+			if status.LastTestAt != nil {
+				summary["last_test_at"] = status.LastTestAt.Format(time.RFC3339)
+			}
+			if status.LastTestStatus != "" {
+				summary["last_test_status"] = status.LastTestStatus
+			}
+
 			response[i] = summary
 		}
 
@@ -197,5 +215,215 @@ func HandleGetProvider(registry *providers.Registry) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, response)
+	}
+}
+
+// HandleGetNotificationHistory handles GET /api/v1/notifications/history
+func HandleGetNotificationHistory(repo *storage.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Parse query parameters
+		filters := storage.HistoryFilters{
+			ProviderID:   c.Query("provider_id"),
+			ProviderType: c.Query("provider_type"),
+			Status:       c.Query("status"),
+			DateFrom:     c.Query("date_from"),
+			DateTo:       c.Query("date_to"),
+			IncludeTests: c.Query("include_tests") != "false", // Default true
+			Cursor:       0,
+			PageSize:     50, // Default page size
+			SortOrder:    "DESC",
+		}
+
+		// Parse cursor if provided
+		if cursorStr := c.Query("cursor"); cursorStr != "" {
+			fmt.Sscanf(cursorStr, "%d", &filters.Cursor)
+		}
+
+		// Parse page size if provided
+		if pageSizeStr := c.Query("page_size"); pageSizeStr != "" {
+			fmt.Sscanf(pageSizeStr, "%d", &filters.PageSize)
+			if filters.PageSize < 1 || filters.PageSize > 100 {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "page_size must be between 1 and 100",
+				})
+				return
+			}
+		}
+
+		// Get notification history
+		notifications, nextCursor, err := repo.GetNotificationHistory(filters)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "failed to retrieve notification history",
+			})
+			return
+		}
+
+		// Build response
+		response := gin.H{
+			"notifications": notifications,
+			"pagination": gin.H{
+				"page_size": filters.PageSize,
+				"has_more":  nextCursor != nil,
+			},
+		}
+
+		if nextCursor != nil {
+			response["pagination"].(gin.H)["next_cursor"] = *nextCursor
+		}
+
+		c.JSON(http.StatusOK, response)
+	}
+}
+
+// HandleGetNotificationDetail handles GET /api/v1/notifications/:id
+func HandleGetNotificationDetail(repo *storage.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Parse ID from path
+		var id int
+		if _, err := fmt.Sscanf(c.Param("id"), "%d", &id); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "invalid notification ID",
+			})
+			return
+		}
+
+		// Get notification by ID
+		notification, err := repo.GetNotificationByID(id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "failed to retrieve notification",
+			})
+			return
+		}
+
+		if notification == nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "notification not found",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, notification)
+	}
+}
+
+// HandleReadinessCheck handles GET /api/v1/ready (T071)
+func HandleReadinessCheck(registry *providers.Registry, repo *storage.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		checks := gin.H{}
+
+		// T071: Check database connection with "SELECT 1" query
+		dbOk := true
+		if err := repo.Ping(); err != nil {
+			checks["database"] = fmt.Sprintf("error: %v", err)
+			dbOk = false
+		} else {
+			checks["database"] = "ok"
+		}
+
+		// Check providers loaded
+		providers := registry.List()
+		if len(providers) > 0 {
+			checks["providers"] = "ok"
+		} else {
+			checks["providers"] = "no providers loaded"
+		}
+
+		// T071: Determine overall status - return 503 if any check fails
+		allOk := dbOk && len(providers) > 0
+
+		if allOk {
+			c.JSON(http.StatusOK, gin.H{
+				"status": "ready",
+				"checks": checks,
+			})
+		} else {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status": "not_ready",
+				"checks": checks,
+			})
+		}
+	}
+}
+
+// HandleTestProvider handles POST /api/v1/providers/:id/test (T053)
+func HandleTestProvider(registry *providers.Registry, logger *storage.NotificationLogger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+
+		// Get provider from registry
+		provider, err := registry.Get(id)
+		if err != nil || provider == nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"code":    "PROVIDER_NOT_FOUND",
+				"message": fmt.Sprintf("Provider with ID '%s' not found", id),
+			})
+			return
+		}
+
+		// T054: Check rate limit (10 seconds between tests)
+		status := provider.GetStatus()
+		if status.LastTestAt != nil {
+			timeSinceLastTest := time.Since(*status.LastTestAt)
+			if timeSinceLastTest < 10*time.Second {
+				retryAfter := int((10*time.Second - timeSinceLastTest).Seconds())
+				c.Header("Retry-After", fmt.Sprintf("%d", retryAfter))
+				c.JSON(http.StatusTooManyRequests, gin.H{
+					"code":    "RATE_LIMITED",
+					"message": "Provider test already in progress or tested recently. Please wait.",
+				})
+				return
+			}
+		}
+
+		// T055: Structured logging for test operation
+		logging.LogWithContext(c.Request.Context()).Info("Provider test initiated",
+			"test_initiator", "UI",
+			"provider_id", id,
+			"provider_type", provider.GetType(),
+		)
+
+		// T053: Call provider Test() method
+		testCtx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+		defer cancel()
+
+		testErr := provider.Test(testCtx)
+		testedAt := time.Now()
+
+		// Prepare response
+		response := gin.H{
+			"tested_at": testedAt.Format(time.RFC3339),
+		}
+
+		if testErr != nil {
+			// Test failed
+			response["result"] = "failed"
+			response["message"] = "Test notification failed"
+			response["error_details"] = testErr.Error()
+
+			// T055: Log test failure
+			logging.LogWithContext(c.Request.Context()).Error("Provider test failed",
+				"provider_id", id,
+				"result", "failed",
+				"error", testErr.Error(),
+				"tested_at", testedAt.Format(time.RFC3339),
+			)
+
+			c.JSON(http.StatusOK, response) // Return 200 even on test failure
+		} else {
+			// Test succeeded
+			response["result"] = "success"
+			response["message"] = fmt.Sprintf("Test notification sent successfully to provider %s", id)
+
+			// T055: Log test success
+			logging.LogWithContext(c.Request.Context()).Info("Provider test succeeded",
+				"provider_id", id,
+				"result", "success",
+				"tested_at", testedAt.Format(time.RFC3339),
+			)
+
+			c.JSON(http.StatusOK, response)
+		}
 	}
 }

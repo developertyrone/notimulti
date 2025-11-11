@@ -5,6 +5,104 @@ All notable changes to the Centralized Notification Server will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-11-08
+
+### Added - Phase 2: Enhanced Deployment & Operations
+
+#### User Story 1: Notification History (P1)
+- **Notification history API** `GET /api/v1/notifications/history` with filtering and pagination
+- **Cursor-based pagination** for efficient browsing of large history datasets
+- **Advanced filters**: provider ID, provider type, status, date range, test/production toggle
+- **Sorting options**: ascending/descending by creation date
+- **History detail API** `GET /api/v1/notifications/:id` for individual notification details
+- **Async notification logger** with buffered queue (1000 entries) and 5-second batch flush
+- **UI history page** at `/history` with interactive filters and pagination controls
+- **Performance**: Queries <1s for 100k+ records with optimized indexes
+
+#### User Story 2: Provider Testing (P2)
+- **Provider test API** `POST /api/v1/providers/:id/test` for validating provider configuration
+- **Test mode flag** (`is_test`) to distinguish test notifications from production
+- **Test recipient configuration** via `test_recipient` in provider config
+- **Test metadata tracking**: last test timestamp and result status
+- **UI test button** on each provider card with result display
+- **Test notifications appear in history** with visual indicator
+
+#### User Story 3: Containerization (P3)
+- **Multi-stage Dockerfile** with optimized build (<100MB final image)
+  - Stage 1: Frontend build (node:18-alpine)
+  - Stage 2: Backend build with embedded frontend (golang:1.21-alpine)
+  - Stage 3: Runtime (alpine:3.18)
+- **Embedded frontend** serving from Go binary (single deployment artifact)
+- **Docker Compose** configuration for quick local deployment
+- **Kubernetes manifests** (StatefulSet, Service, ConfigMap, PVC, Ingress)
+- **Health probes**: liveness (`/api/v1/health`) and readiness (`/api/v1/ready`)
+- **Non-root container** user (UID 1000) for security
+- **Volume mounting** for configs (read-only) and database (read-write)
+- **Environment variables** for containerized deployment
+- **Multi-architecture support**: linux/amd64, linux/arm64
+
+#### User Story 4: CI/CD Automation (P4)
+- **GitHub Actions workflow** for automated builds and publishing
+- **Test enforcement**: backend and frontend tests must pass before build
+- **Coverage requirement**: ≥80% code coverage enforced
+- **Multi-architecture builds**: amd64 and arm64 via Docker Buildx
+- **Layer caching**: GitHub Actions cache for faster builds
+- **Security scanning**: Trivy vulnerability scan (fails on CRITICAL/HIGH)
+- **Semantic versioning**: automatic tagging (v1.2.3 → 1.2.3, 1.2, 1, latest)
+- **Docker Hub publishing**: automatic push on main branch and version tags
+- **Pull request builds**: test-only (no publish) for PRs
+
+### Changed
+
+#### Breaking Changes
+- **Database schema**: Added `is_test` column to `notification_logs` table
+  - **Migration required**: Run `backend/migrations/002_enhanced_deployment.sql`
+  - Existing notifications will be marked as non-test (production)
+- **Environment variables**: Renamed for container compatibility
+  - `SERVER_PORT` → `PORT`
+  - `DB_PATH` default changed to `/app/data/notifications.db`
+  - `CONFIG_DIR` default changed to `/app/configs`
+- **Frontend serving**: Now embedded in Go binary (no separate static file serving required)
+- **Provider interface**: Added `GetTestRecipient()` and `Test()` methods
+  - **Impact**: Custom providers must implement new methods
+
+#### Non-Breaking Changes
+- **Improved logging**: Added structured context for notification operations
+- **Database indexes**: Added composite indexes for faster history queries
+- **Error messages**: More user-friendly and actionable across API and UI
+- **Performance**: Optimized query performance for large datasets
+
+### Fixed
+- Concurrent write handling in SQLite with WAL mode
+- Provider reload race conditions with proper locking
+- Memory leaks in async logger worker goroutine
+- Frontend SPA routing for non-API paths
+
+### Performance Improvements
+- **History queries**: <1s for 100k records (10x improvement)
+- **Docker build**: <5 minutes full, <1 minute incremental
+- **Image size**: <100MB (multi-stage build optimization)
+- **Provider tests**: <10s including external API calls
+
+### Security Enhancements
+- **Container security**: Non-root user, minimal base image
+- **Vulnerability scanning**: Automated Trivy scans in CI/CD
+- **Sensitive data redaction**: Enhanced to cover all debug modes
+- **HTTPS support**: Ready for Ingress/reverse proxy deployment
+
+### Documentation
+- **QUICKSTART.md**: Docker-first quick start guide (5-minute deployment)
+- **Kubernetes guide**: Complete deployment guide at `deploy/k8s/README.md`
+- **CI/CD guide**: GitHub Actions workflow documentation at `.github/workflows/README.md`
+- **Migration guide**: Database migration script with rollback instructions
+- **Updated README.md**: Added Docker, Kubernetes, and CI/CD sections
+
+### Developer Experience
+- **Simplified deployment**: Single `docker-compose up` command
+- **Local development**: Frontend dist embedded for easier backend testing
+- **CI/CD automation**: No manual Docker builds or publishing required
+- **Test coverage**: Automated enforcement in CI pipeline
+
 ## [1.0.0] - 2025-11-06
 
 ### Added

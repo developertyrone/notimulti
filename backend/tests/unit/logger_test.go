@@ -51,7 +51,7 @@ func setupTestDB(t *testing.T) (*sql.DB, string) {
 	return db, dbPath
 }
 
-func TestNotificationLogger_LogNotification_Valid(t *testing.T) {
+func TestNotificationLogger_Log_Valid(t *testing.T) {
 	db, dbPath := setupTestDB(t)
 	defer os.Remove(dbPath)
 	defer db.Close()
@@ -72,13 +72,13 @@ func TestNotificationLogger_LogNotification_Valid(t *testing.T) {
 		},
 	}
 
-	err = logger.LogNotification(notification, "delivered", "", "telegram", 1)
+	err = logger.Log(notification, "delivered", "", "telegram", 1)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
 	// Force flush to ensure record is written
-	logger.Flush()
+	logger.Close()
 
 	// Verify record in database
 	var count int
@@ -120,7 +120,7 @@ func TestNotificationLogger_LogNotification_Valid(t *testing.T) {
 	}
 }
 
-func TestNotificationLogger_LogNotification_Failed(t *testing.T) {
+func TestNotificationLogger_Log_Failed(t *testing.T) {
 	db, dbPath := setupTestDB(t)
 	defer os.Remove(dbPath)
 	defer db.Close()
@@ -139,12 +139,12 @@ func TestNotificationLogger_LogNotification_Failed(t *testing.T) {
 	}
 
 	errorMsg := "SMTP connection failed"
-	err = logger.LogNotification(notification, "failed", errorMsg, "email", 3)
+	err = logger.Log(notification, "failed", errorMsg, "email", 3)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	logger.Flush()
+	logger.Close()
 
 	// Verify error message and status
 	var status, storedErrorMsg string
@@ -188,7 +188,7 @@ func TestNotificationLogger_BatchingBehavior_BufferFull(t *testing.T) {
 			Recipient:  "test@example.com",
 			Message:    "Batch test message",
 		}
-		err = logger.LogNotification(notification, "delivered", "", "email", 1)
+		err = logger.Log(notification, "delivered", "", "email", 1)
 		if err != nil {
 			t.Errorf("Failed to log notification %d: %v", i, err)
 		}
@@ -228,7 +228,7 @@ func TestNotificationLogger_BatchingBehavior_TimedFlush(t *testing.T) {
 			Recipient:  "test@example.com",
 			Message:    "Timed flush test",
 		}
-		err = logger.LogNotification(notification, "delivered", "", "email", 1)
+		err = logger.Log(notification, "delivered", "", "email", 1)
 		if err != nil {
 			t.Errorf("Failed to log notification %d: %v", i, err)
 		}
@@ -268,14 +268,14 @@ func TestNotificationLogger_ManualFlush(t *testing.T) {
 			Recipient:  "test@example.com",
 			Message:    "Manual flush test",
 		}
-		err = logger.LogNotification(notification, "delivered", "", "email", 1)
+		err = logger.Log(notification, "delivered", "", "email", 1)
 		if err != nil {
 			t.Errorf("Failed to log notification %d: %v", i, err)
 		}
 	}
 
 	// Manually flush before timer
-	logger.Flush()
+	logger.Close()
 
 	// Verify records were flushed immediately
 	var count int
@@ -309,13 +309,13 @@ func TestNotificationLogger_ErrorHandling_DBUnavailable(t *testing.T) {
 	}
 
 	// Should not panic or return error - graceful degradation
-	err = logger.LogNotification(notification, "delivered", "", "email", 1)
+	err = logger.Log(notification, "delivered", "", "email", 1)
 	if err != nil {
 		t.Errorf("Expected graceful error handling, got error: %v", err)
 	}
 
 	// Flush should also handle error gracefully
-	logger.Flush()
+	logger.Close()
 }
 
 func TestNotificationLogger_PreparedStatement_Reuse(t *testing.T) {
@@ -337,13 +337,13 @@ func TestNotificationLogger_PreparedStatement_Reuse(t *testing.T) {
 			Recipient:  "test@example.com",
 			Message:    "Prepared statement test",
 		}
-		err = logger.LogNotification(notification, "delivered", "", "email", 1)
+		err = logger.Log(notification, "delivered", "", "email", 1)
 		if err != nil {
 			t.Errorf("Failed to log notification %d: %v", i, err)
 		}
 	}
 
-	logger.Flush()
+	logger.Close()
 
 	// Verify all records inserted
 	var count int
@@ -375,7 +375,7 @@ func TestNotificationLogger_Close_FlushesBuffer(t *testing.T) {
 			Recipient:  "test@example.com",
 			Message:    "Close flush test",
 		}
-		err = logger.LogNotification(notification, "delivered", "", "email", 1)
+		err = logger.Log(notification, "delivered", "", "email", 1)
 		if err != nil {
 			t.Errorf("Failed to log notification %d: %v", i, err)
 		}
@@ -418,7 +418,7 @@ func TestNotificationLogger_ConcurrentWrites(t *testing.T) {
 					Recipient:  "test@example.com",
 					Message:    "Concurrent test",
 				}
-				logger.LogNotification(notification, "delivered", "", "email", 1)
+				logger.Log(notification, "delivered", "", "email", 1)
 			}
 			done <- true
 		}(g)
@@ -429,7 +429,7 @@ func TestNotificationLogger_ConcurrentWrites(t *testing.T) {
 		<-done
 	}
 
-	logger.Flush()
+	logger.Close()
 
 	// Verify all records inserted
 	var count int
@@ -443,7 +443,7 @@ func TestNotificationLogger_ConcurrentWrites(t *testing.T) {
 	}
 }
 
-func BenchmarkNotificationLogger_LogNotification(b *testing.B) {
+func BenchmarkNotificationLogger_Log(b *testing.B) {
 	db, dbPath := setupTestDB(&testing.T{})
 	defer os.Remove(dbPath)
 	defer db.Close()
@@ -464,9 +464,9 @@ func BenchmarkNotificationLogger_LogNotification(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		notification.ID = time.Now().Format("20060102150405.000000") + string(rune(i))
-		logger.LogNotification(notification, "delivered", "", "email", 1)
+		logger.Log(notification, "delivered", "", "email", 1)
 		if i%100 == 0 {
-			logger.Flush()
+			logger.Close()
 		}
 	}
 }

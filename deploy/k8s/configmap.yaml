@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notimulti-config
+  labels:
+    app: notimulti
+data:
+  # Template Telegram provider configuration
+  # Update with your actual Telegram bot token and chat ID
+  telegram-alerts.json: |
+    {
+      "provider_id": "telegram-alerts",
+      "provider_type": "telegram",
+      "enabled": true,
+      "config": {
+        "bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+        "default_chat_id": "YOUR_DEFAULT_CHAT_ID",
+        "parse_mode": "Markdown"
+      }
+    }
+  
+  # Template Email provider configuration
+  # Update with your actual SMTP credentials
+  email-prod.json: |
+    {
+      "provider_id": "email-prod",
+      "provider_type": "email",
+      "enabled": true,
+      "config": {
+        "smtp_host": "smtp.example.com",
+        "smtp_port": 587,
+        "smtp_username": "notifications@example.com",
+        "smtp_password": "YOUR_SMTP_PASSWORD",
+        "from_address": "notifications@example.com",
+        "from_name": "Notification Server"
+      }
+    }

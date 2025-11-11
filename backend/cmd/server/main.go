@@ -26,9 +26,10 @@ func main() {
 	logger.Info("Starting notification server", "version", "1.0.0")
 
 	// Initialize database
+	// T070: Use DB_PATH environment variable with default
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		dbPath = "./data/notifications.db"
+		dbPath = "/app/data/notifications.db" // Default for container
 	}
 
 	dbWrapper, err := storage.InitDB(dbPath)
@@ -47,10 +48,15 @@ func main() {
 	}
 	defer notifLogger.Close()
 
+	// Initialize repository for notification history queries
+	repo := storage.NewRepository(dbWrapper.GetConn())
+	logger.Info("Repository initialized")
+
 	// Load provider configurations
+	// T070: Use CONFIG_DIR environment variable with default
 	configDir := os.Getenv("CONFIG_DIR")
 	if configDir == "" {
-		configDir = "./configs"
+		configDir = "/app/configs" // Default for container
 	}
 
 	loader := config.NewLoader(configDir)
@@ -138,13 +144,14 @@ func main() {
 	watcher.Start()
 	logger.Info("Configuration watcher started", "directory", configDir)
 
-	// Setup router with registry and logger
-	router := api.SetupRouter(registry, notifLogger)
+	// Setup API router
+	router := api.SetupRouter(registry, notifLogger, repo)
 
 	// Get server port
-	port := os.Getenv("SERVER_PORT")
+	// T070: Use PORT environment variable (standard for containers)
+	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8080" // Default port
 	}
 
 	// Create HTTP server

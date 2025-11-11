@@ -11,9 +11,11 @@ import (
 
 // EmailProvider implements the Provider interface for SMTP email
 type EmailProvider struct {
-	id     string
-	config *EmailConfig
-	dailer *gomail.Dialer
+	id             string
+	config         *EmailConfig
+	dailer         *gomail.Dialer
+	lastTestAt     *time.Time
+	lastTestStatus string
 }
 
 // NewEmailProvider creates a new Email provider instance
@@ -118,17 +120,21 @@ func (ep *EmailProvider) GetStatus() *ProviderStatus {
 	conn, err := ep.dailer.Dial()
 	if err != nil {
 		return &ProviderStatus{
-			Status:       StatusError,
-			LastUpdated:  time.Now(),
-			ErrorMessage: fmt.Sprintf("SMTP connectivity check failed: %v", err),
+			Status:         StatusError,
+			LastUpdated:    time.Now(),
+			ErrorMessage:   fmt.Sprintf("SMTP connectivity check failed: %v", err),
+			LastTestAt:     ep.lastTestAt,     // T049
+			LastTestStatus: ep.lastTestStatus, // T049
 		}
 	}
 	defer conn.Close()
 
 	return &ProviderStatus{
-		Status:       StatusActive,
-		LastUpdated:  time.Now(),
-		ErrorMessage: fmt.Sprintf("SMTP: %s:%d", ep.config.Host, ep.config.Port),
+		Status:         StatusActive,
+		LastUpdated:    time.Now(),
+		ErrorMessage:   fmt.Sprintf("SMTP: %s:%d", ep.config.Host, ep.config.Port),
+		LastTestAt:     ep.lastTestAt,     // T049
+		LastTestStatus: ep.lastTestStatus, // T049
 	}
 }
 
@@ -140,6 +146,57 @@ func (ep *EmailProvider) GetID() string {
 // GetType returns the provider type
 func (ep *EmailProvider) GetType() string {
 	return "email"
+}
+
+// GetTestRecipient returns the test_recipient or from address as fallback (T050)
+func (ep *EmailProvider) GetTestRecipient() (string, error) {
+	// Use test_recipient if configured
+	if ep.config.TestRecipient != "" {
+		return ep.config.TestRecipient, nil
+	}
+	
+	// Fallback to from address
+	if ep.config.From != "" {
+		return ep.config.From, nil
+	}
+	
+	return "", fmt.Errorf("test_recipient not configured and from address empty for Email provider %s", ep.id)
+}
+
+// Test sends a test email and updates last test metadata (T051, T052)
+func (ep *EmailProvider) Test(ctx context.Context) error {
+	// Get test recipient
+	recipient, err := ep.GetTestRecipient()
+	if err != nil {
+		return fmt.Errorf("failed to get test recipient: %w", err)
+	}
+
+	// Create test notification with timestamp (T052)
+	timestamp := time.Now().UTC().Format("2006-01-02 15:04:05 MST")
+	testNotification := &Notification{
+		ID:         fmt.Sprintf("test-%s-%d", ep.id, time.Now().Unix()),
+		ProviderID: ep.id,
+		Recipient:  recipient,
+		Subject:    "Test from notimulti", // T052: Email subject
+		Message:    fmt.Sprintf("Test notification from notimulti server - %s", timestamp),
+		Priority:   PriorityNormal,
+		Timestamp:  time.Now(),
+	}
+
+	// Send test notification
+	err = ep.Send(ctx, testNotification)
+	
+	// Update last test metadata (T051)
+	now := time.Now()
+	ep.lastTestAt = &now
+	
+	if err != nil {
+		ep.lastTestStatus = "failed"
+		return fmt.Errorf("test notification failed: %w", err)
+	}
+	
+	ep.lastTestStatus = "success"
+	return nil
 }
 
 // Close performs cleanup

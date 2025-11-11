@@ -29,6 +29,6 @@ k8s + docker compose deployment
 
 
 --- FEATURE3 ---
-release notes and tags for each release in github
+release notes and tags for each release in github, like proper software
 
 

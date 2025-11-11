@@ -29,7 +29,7 @@ func setupTestRouter() *httptest.Server {
 		registry.Register(emailProvider)
 	}
 
-	router := api.SetupRouter(registry, nil)
+	router := api.SetupRouter(registry, nil, nil)
 	return httptest.NewServer(router)
 }
 

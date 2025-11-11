@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: notimulti
+  labels:
+    app: notimulti
+  annotations:
+    # For nginx-ingress controller
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # Optional: Enable SSL/TLS
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Optional: Force HTTPS redirect
+    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  # Optional: TLS configuration
+  # tls:
+  # - hosts:
+  #   - notimulti.example.com
+  #   secretName: notimulti-tls
+  
+  rules:
+  - host: notimulti.example.com  # Update with your actual domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: notimulti
+            port:
+              number: 80

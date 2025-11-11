@@ -29,6 +29,12 @@ func InitDB(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
 	}
 
+	// Set synchronous mode to NORMAL for balanced durability vs performance
+	if _, err := conn.Exec("PRAGMA synchronous=NORMAL"); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to set synchronous mode: %w", err)
+	}
+
 	// Set busy timeout to 5000ms
 	if _, err := conn.Exec("PRAGMA busy_timeout=5000"); err != nil {
 		conn.Close()

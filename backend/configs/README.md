@@ -1,88 +1,67 @@
 # Provider Configuration Guide
 
-## Why Don't I See Providers in the Dashboard?
+## Quick Start
 
-Providers appear in the dashboard only if they:
-1. ✅ Have valid JSON structure with `"config": {...}` (not `"telegram": {...}`)
-2. ✅ Have `"enabled": true` field
-3. ✅ Pass validation (required fields present)
-4. ✅ **Successfully initialize** (this is the key requirement!)
+Sample configuration files are provided in this directory:
+- `telegram-example.json` - Telegram bot configuration template
+- `email-example.json` - Email/SMTP configuration template
 
-## Current Status
+**To use them:**
+1. Copy and rename (e.g., `cp telegram-example.json telegram-prod.json`)
+2. Replace placeholder values with your real credentials
+3. Save - the server auto-detects and loads the provider!
 
-### Email Provider (email-demo.json)
-- ✅ Loads successfully
-- ✅ Appears in dashboard
-- ⚠️  Shows "error" status because `smtp.example.com` is not a real SMTP server
-- **To fix**: Replace with real SMTP credentials (see below)
+## Configuration Examples
 
-### Telegram Provider (telegram-demo.json)
-- ❌ Currently disabled (`"enabled": false`)
-- **Reason**: The Telegram Bot API validates tokens during initialization
-- Fake tokens like `"1234567890:ABCdefGHI..."` are rejected immediately
-- **To fix**: Use a real Telegram bot token (see below)
+### Telegram Bot
 
-## How to Add Real Credentials
+```json
+{
+  "id": "telegram-main",
+  "type": "telegram",
+  "enabled": true,
+  "config": {
+    "bot_token": "123456789:ABCdefGHIjklMNOpqrsTUVwxyz",
+    "default_chat_id": "-1001234567890",
+    "parse_mode": "HTML",
+    "timeout_seconds": 30
+  }
+}
+```
 
-### For Telegram Bot
+**How to get credentials:**
+1. Message `@BotFather` on Telegram and send `/newbot`
+2. Follow instructions to get your bot token
+3. Start chat with your bot or add to a group
+4. Visit `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
+5. Find `"chat":{"id": ...}` in the response for your chat ID
 
-1. **Create a bot**:
-   - Open Telegram and search for `@BotFather`
-   - Send `/newbot` and follow instructions
-   - Copy the bot token (format: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
+### Email (Gmail)
 
-2. **Get chat ID**:
-   - Start a chat with your bot or add it to a group
-   - Send a message to the bot
-   - Visit: `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
-   - Look for `"chat":{"id": -1001234567890}` in the response
-   - Copy the chat ID (can be positive or negative number)
+```json
+{
+  "id": "email-smtp",
+  "type": "email",
+  "enabled": true,
+  "config": {
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "username": "your-email@gmail.com",
+    "password": "your-app-password",
+    "from": "your-email@gmail.com",
+    "use_tls": true,
+    "timeout_seconds": 30
+  }
+}
+```
 
-3. **Update config**:
-   ```json
-   {
-     "id": "telegram-prod",
-     "type": "telegram",
-     "enabled": true,
-     "config": {
-       "bot_token": "YOUR_REAL_BOT_TOKEN_HERE",
-       "default_chat_id": "YOUR_CHAT_ID_HERE",
-       "parse_mode": "HTML"
-     }
-   }
-   ```
+**For Gmail:**
+1. Enable 2FA on your Google account
+2. Visit https://myaccount.google.com/apppasswords
+3. Generate app password (16 characters)
+4. Use that as the password
 
-4. Save the file - the server will auto-reload and the provider will appear in the dashboard!
-
-### For Email/SMTP
-
-#### Gmail Example
-
-1. **Enable 2-factor authentication** on your Google account
-
-2. **Generate app password**:
-   - Visit: https://myaccount.google.com/apppasswords
-   - Create a new app password
-   - Copy the 16-character password
-
-3. **Update config**:
-   ```json
-   {
-     "id": "email-prod",
-     "type": "email",
-     "enabled": true,
-     "config": {
-       "host": "smtp.gmail.com",
-       "port": 587,
-       "username": "your-email@gmail.com",
-       "password": "your-16-char-app-password",
-       "from": "your-email@gmail.com",
-       "use_tls": true
-     }
-   }
-   ```
-
-#### Other SMTP Providers
+### Other SMTP Providers
 
 **SendGrid**:
 ```json

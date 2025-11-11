@@ -28,6 +28,8 @@ type ProviderStatus struct {
 	LastUpdated    time.Time `json:"last_updated"`
 	ErrorMessage   string    `json:"error_message,omitempty"`
 	ConfigChecksum string    `json:"config_checksum,omitempty"`
+	LastTestAt     *time.Time `json:"last_test_at,omitempty"`       // T049: When provider was last tested
+	LastTestStatus string    `json:"last_test_status,omitempty"`    // T049: "success" or "failed"
 }
 
 // Priority constants for notifications
@@ -62,4 +64,5 @@ type EmailConfig struct {
 	From           string `json:"from"`
 	UseTLS         bool   `json:"use_tls,omitempty"`
 	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+	TestRecipient  string `json:"test_recipient,omitempty"` // T050: Email address for test notifications
 }
