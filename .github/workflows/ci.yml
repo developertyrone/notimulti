@@ -15,7 +15,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.23'
       
       - name: Install dependencies
         working-directory: ./backend
@@ -39,17 +39,15 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: ./frontend/package-lock.json
+          node-version: '20'
       
       - name: Install dependencies
         working-directory: ./frontend
-        run: npm ci
+        run: npm install
       
       - name: Run tests
         working-directory: ./frontend
-        run: npm test
+        run: npm test -- --run
       
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -65,7 +63,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.23'
       
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6

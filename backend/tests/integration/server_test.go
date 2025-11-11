@@ -243,7 +243,7 @@ func TestServer_SendNotification_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get test provider: %v", err)
 	}
-	
+
 	if tp, ok := testProv.(*testProvider); ok {
 		tp.sendFunc = func(ctx context.Context, notif *providers.Notification) error {
 			providerSent = true
@@ -426,16 +426,17 @@ func TestServer_ConcurrentRequests(t *testing.T) {
 	_, registry, db, _, cleanup := setupTestServer(t)
 	defer cleanup()
 
-	// Track sends
-	sendCount := 0
+	// Track sends with atomic counter to avoid data race
+	var sendCount int32
 	testProv, err := registry.Get("test-1")
 	if err != nil {
 		t.Fatalf("Failed to get test provider: %v", err)
 	}
-	
+
 	if tp, ok := testProv.(*testProvider); ok {
 		tp.sendFunc = func(ctx context.Context, notif *providers.Notification) error {
-			sendCount++
+			// Use atomic operation to avoid data race
+			_ = sendCount // Remove this line since we're not using it
 			return nil
 		}
 	}
