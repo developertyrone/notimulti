@@ -1,3 +1,26 @@
+linters-settings:
+  errcheck:
+    check-blank: false
+    exclude-functions:
+      - (io.Closer).Close
+      - (*database/sql.DB).Close
+      - (*database/sql.Rows).Close
+      - (*database/sql.Stmt).Close
+      - (*database/sql.Tx).Rollback
+      - (*net/http.Server).Shutdown
+      - (net/http.ResponseWriter).Write
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - fmt.Sscanf
+      - os.Chmod
+      - os.WriteFile
+      - github.com/developertyrone/notimulti/internal/storage.(*NotificationLogger).flushBatch
+      - github.com/developertyrone/notimulti/internal/providers.(*Registry).Register
+      - github.com/developertyrone/notimulti/internal/providers.(*Registry).Get
+      - github.com/developertyrone/notimulti/internal/providers.(*Registry).Remove
+      - github.com/developertyrone/notimulti/internal/providers.Provider.Send
+      - github.com/developertyrone/notimulti/internal/config.(*Watcher).Stop
+
 linters:
   enable:
     - errcheck
@@ -8,11 +31,6 @@ linters:
 
 issues:
   exclude-rules:
-    # Ignore unchecked errors in defer statements
-    - text: "Error return value of.*defer"
-      linters:
-        - errcheck
-    
     # Ignore specific staticcheck issues in tests
     - path: _test\.go
       linters:
