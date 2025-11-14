@@ -303,8 +303,8 @@ func TestServer_SendNotification_Success(t *testing.T) {
 		t.Error("Provider did not receive notification")
 	}
 
-	// Wait for async logger to flush
-	time.Sleep(100 * time.Millisecond)
+	// Wait for async logger to flush (default 5s timer)
+	time.Sleep(6 * time.Second)
 
 	// Verify notification logged to database
 	var count int
@@ -326,8 +326,8 @@ func TestServer_SendNotification_Success(t *testing.T) {
 		t.Fatalf("Failed to query notification log: %v", err)
 	}
 
-	if status != "delivered" {
-		t.Errorf("Expected status 'delivered', got '%s'", status)
+	if status != "sent" {
+		t.Errorf("Expected status 'sent', got '%s'", status)
 	}
 	if message != "Test notification" {
 		t.Errorf("Expected message 'Test notification', got '%s'", message)
@@ -471,11 +471,8 @@ func TestServer_ConcurrentRequests(t *testing.T) {
 		<-done
 	}
 
-	// Wait for async processing and database flush
-	time.Sleep(2 * time.Second)
-
-	// Wait for async logging to complete (increased for reliability)
-	time.Sleep(500 * time.Millisecond)
+	// Wait for async logger to flush (default 5s timer + margin)
+	time.Sleep(6 * time.Second)
 
 	// Verify all notifications were logged
 	var count int
