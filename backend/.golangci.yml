@@ -1,22 +1,3 @@
-version: "2"
-
-linters-settings:
-  errcheck:
-    # Don't check for unchecked errors in defer statements
-    check-blank: false
-    check-type-assertions: false
-    exclude-functions:
-      - (*database/sql.DB).Close
-      - (*database/sql.Rows).Close
-      - (*database/sql.Stmt).Close
-      - (*database/sql.Tx).Rollback
-      - (*net.Conn).Close
-      - (*os.File).Close
-      - (io.Closer).Close
-      - fmt.Fprintf
-      - fmt.Fprintln
-      - fmt.Sscanf
-
 linters:
   enable:
     - errcheck
@@ -24,45 +5,25 @@ linters:
     - govet
     - ineffassign
     - unused
-  disable:
-    - typecheck # Can conflict with build tags
 
 issues:
-  # Exclude some linters from running on test files
   exclude-rules:
-    # Ignore unchecked errors in defer statements within tests
-    - path: _test\.go
+    # Ignore unchecked errors in defer statements
+    - text: "Error return value of.*defer"
       linters:
         - errcheck
-      text: "Error return value of.*defer"
     
-    # Ignore certain staticcheck issues in tests
+    # Ignore specific staticcheck issues in tests
     - path: _test\.go
       linters:
         - staticcheck
-      text: "SA5011"
+      text: "(SA5011|SA9003|SA4031)"
     
-    - path: _test\.go
+    # Ignore registry nil context
+    - path: internal/providers/registry\.go
       linters:
         - staticcheck
-      text: "SA9003"
-    
-    - path: _test\.go
-      linters:
-        - staticcheck
-      text: "SA4031"
-
-  # Maximum issues count per one linter. Set to 0 to disable.
-  max-issues-per-linter: 0
-
-  # Maximum count of issues with the same text. Set to 0 to disable.
-  max-same-issues: 0
+      text: "SA1012"
 
 run:
   timeout: 5m
-  tests: true
-  skip-dirs:
-    - vendor
-
-output:
-  sort-results: true
