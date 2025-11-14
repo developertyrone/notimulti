@@ -133,10 +133,10 @@ func TestIndexCreation(t *testing.T) {
 	defer rows.Close()
 
 	expectedIndexes := map[string]bool{
-		"idx_notification_logs_provider_id":   false,
-		"idx_notification_logs_created_at":    false,
-		"idx_notification_logs_status":        false,
-		"idx_notification_logs_provider_type": false,
+		"idx_provider_created": false,
+		"idx_status_created":   false,
+		"idx_type_created":     false,
+		"idx_created_id":       false,
 	}
 
 	foundCount := 0
