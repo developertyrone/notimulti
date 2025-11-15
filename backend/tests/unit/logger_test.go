@@ -205,6 +205,27 @@ func TestNotificationLogger_BatchingBehavior_BufferFull(t *testing.T) {
 	}
 }
 
+func TestNotificationLogger_LogAfterClose(t *testing.T) {
+	db, dbPath := setupTestDB(t)
+	defer os.Remove(dbPath)
+	defer db.Close()
+
+	logger, err := storage.NewNotificationLogger(db)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+
+	if err := logger.Close(); err != nil {
+		t.Fatalf("Close returned error: %v", err)
+	}
+
+	// Logging after close should be a no-op and not panic
+	logger.Log(storage.LogEntry{
+		Notification: &providers.Notification{ID: "after-close", ProviderID: "test", Recipient: "test@example.com", Message: "noop"},
+		Status:       storage.StatusSent,
+	})
+}
+
 func TestNotificationLogger_BatchingBehavior_TimedFlush(t *testing.T) {
 	db, dbPath := setupTestDB(t)
 	defer os.Remove(dbPath)

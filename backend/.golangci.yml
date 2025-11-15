@@ -11,47 +11,47 @@ issues:
     # Exclude errcheck for specific functions
     - linters:
         - errcheck
-      text: "Error return value of `nl.flushBatch` is not checked"
+      text: "Error return value of nl\\.flushBatch is not checked"
     
     - linters:
         - errcheck
-      text: "Error return value of `registry.Register` is not checked"
+      text: "Error return value of registry\\.Register is not checked"
     
     - linters:
         - errcheck
-      text: "Error return value of `registry.Get` is not checked"
+      text: "Error return value of registry\\.Get is not checked"
     
     - linters:
         - errcheck
-      text: "Error return value of `registry.Remove` is not checked"
+      text: "Error return value of registry\\.Remove is not checked"
     
     - linters:
         - errcheck
-      text: "Error return value of `provider.Send` is not checked"
+      text: "Error return value of provider\\.Send is not checked"
     
     - linters:
         - errcheck
-      text: "Error return value of `watcher.Stop` is not checked"
+      text: "Error return value of watcher\\.Stop is not checked"
     
     - linters:
         - errcheck
-      text: "Error return value of `os.WriteFile` is not checked"
+      text: "Error return value of os\\.WriteFile is not checked"
     
     - linters:
         - errcheck
-      text: "Error return value of `os.Chmod` is not checked"
+      text: "Error return value of os\\.Chmod is not checked"
     
     - linters:
         - errcheck
-      text: "Error return value of `server.Shutdown` is not checked"
+      text: "Error return value of server\\.Shutdown is not checked"
     
     - linters:
         - errcheck
-      text: "Error return value of `tx.Rollback` is not checked"
+      text: "Error return value of tx\\.Rollback is not checked"
     
     - linters:
         - errcheck
-      text: "Error return value of `fmt.Sscanf` is not checked"
+      text: "Error return value of fmt\\.Sscanf is not checked"
     
     # Ignore specific staticcheck issues in tests
     - path: _test\.go
