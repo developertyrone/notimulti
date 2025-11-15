@@ -127,7 +127,11 @@ func (ep *EmailProvider) GetStatus() *ProviderStatus {
 			LastTestStatus: ep.lastTestStatus, // T049
 		}
 	}
-	defer conn.Close()
+	defer func() {
+		if closeErr := conn.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close SMTP connection for provider %s: %v\n", ep.id, closeErr)
+		}
+	}()
 
 	return &ProviderStatus{
 		Status:         StatusActive,
@@ -154,12 +158,12 @@ func (ep *EmailProvider) GetTestRecipient() (string, error) {
 	if ep.config.TestRecipient != "" {
 		return ep.config.TestRecipient, nil
 	}
-	
+
 	// Fallback to from address
 	if ep.config.From != "" {
 		return ep.config.From, nil
 	}
-	
+
 	return "", fmt.Errorf("test_recipient not configured and from address empty for Email provider %s", ep.id)
 }
 
@@ -185,16 +189,16 @@ func (ep *EmailProvider) Test(ctx context.Context) error {
 
 	// Send test notification
 	err = ep.Send(ctx, testNotification)
-	
+
 	// Update last test metadata (T051)
 	now := time.Now()
 	ep.lastTestAt = &now
-	
+
 	if err != nil {
 		ep.lastTestStatus = "failed"
 		return fmt.Errorf("test notification failed: %w", err)
 	}
-	
+
 	ep.lastTestStatus = "success"
 	return nil
 }

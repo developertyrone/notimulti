@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -27,7 +28,7 @@ func (r *Registry) SetLogger(logger *slog.Logger) {
 
 func (r *Registry) log(level slog.Level, msg string, args ...any) {
 	if r.logger != nil {
-		r.logger.Log(nil, level, msg, args...)
+		r.logger.Log(context.Background(), level, msg, args...)
 	}
 }
 

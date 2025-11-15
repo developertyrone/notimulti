@@ -11,13 +11,13 @@ import (
 
 // MockProvider is a simple mock implementation for testing
 type MockProvider struct {
-	IDFunc              func() string
-	TypeFunc            func() string
-	SendFunc            func(context.Context, *providers.Notification) error
-	StatusFunc          func() *providers.ProviderStatus
-	CloseFunc           func() error
+	IDFunc               func() string
+	TypeFunc             func() string
+	SendFunc             func(context.Context, *providers.Notification) error
+	StatusFunc           func() *providers.ProviderStatus
+	CloseFunc            func() error
 	GetTestRecipientFunc func() (string, error)
-	TestFunc            func(context.Context) error
+	TestFunc             func(context.Context) error
 }
 
 func (m *MockProvider) Send(ctx context.Context, notification *providers.Notification) error {
@@ -80,8 +80,12 @@ func SetupTestDB(t *testing.T) (*sql.DB, func()) {
 	}
 
 	cleanup := func() {
-		db.Close()
-		os.Remove(dbPath)
+		if err := db.Close(); err != nil {
+			t.Fatalf("Failed to close test database: %v", err)
+		}
+		if err := os.Remove(dbPath); err != nil && !os.IsNotExist(err) {
+			t.Fatalf("Failed to remove test database file: %v", err)
+		}
 	}
 
 	return db, cleanup

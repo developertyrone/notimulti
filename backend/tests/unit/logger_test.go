@@ -14,7 +14,9 @@ import (
 func setupTestDB(t *testing.T) (*sql.DB, string) {
 	dbPath := "./test_logger.db"
 	// Remove existing test database
-	os.Remove(dbPath)
+	if err := os.Remove(dbPath); err != nil && !os.IsNotExist(err) {
+		t.Fatalf("Failed to remove existing test database: %v", err)
+	}
 
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
@@ -29,16 +31,40 @@ func setupTestDB(t *testing.T) (*sql.DB, string) {
 	return db, dbPath
 }
 
+func cleanupTestDBFile(tb testing.TB, path string) {
+	tb.Helper()
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		tb.Fatalf("Failed to remove test database file: %v", err)
+	}
+}
+
+func closeSQLDB(tb testing.TB, db *sql.DB) {
+	tb.Helper()
+	if err := db.Close(); err != nil {
+		tb.Fatalf("Failed to close test database: %v", err)
+	}
+}
+
+func closeNotificationLogger(tb testing.TB, logger *storage.NotificationLogger) {
+	tb.Helper()
+	if logger == nil {
+		return
+	}
+	if err := logger.Close(); err != nil {
+		tb.Fatalf("Failed to close notification logger: %v", err)
+	}
+}
+
 func TestNotificationLogger_Log_Valid(t *testing.T) {
 	db, dbPath := setupTestDB(t)
-	defer os.Remove(dbPath)
-	defer db.Close()
+	defer cleanupTestDBFile(t, dbPath)
+	defer closeSQLDB(t, db)
 
 	logger, err := storage.NewNotificationLogger(db)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	defer logger.Close()
+	defer closeNotificationLogger(t, logger)
 
 	notification := &providers.Notification{
 		ID:         "test-123",
@@ -60,7 +86,9 @@ func TestNotificationLogger_Log_Valid(t *testing.T) {
 	})
 
 	// Force flush to ensure record is written
-	logger.Close()
+	if err := logger.Close(); err != nil {
+		t.Fatalf("Failed to close logger: %v", err)
+	}
 
 	// Verify record in database
 	var count int
@@ -104,14 +132,14 @@ func TestNotificationLogger_Log_Valid(t *testing.T) {
 
 func TestNotificationLogger_Log_Failed(t *testing.T) {
 	db, dbPath := setupTestDB(t)
-	defer os.Remove(dbPath)
-	defer db.Close()
+	defer cleanupTestDBFile(t, dbPath)
+	defer closeSQLDB(t, db)
 
 	logger, err := storage.NewNotificationLogger(db)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	defer logger.Close()
+	defer closeNotificationLogger(t, logger)
 
 	notification := &providers.Notification{
 		ID:         "test-failed-123",
@@ -133,7 +161,9 @@ func TestNotificationLogger_Log_Failed(t *testing.T) {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	logger.Close()
+	if err := logger.Close(); err != nil {
+		t.Fatalf("Failed to close logger: %v", err)
+	}
 
 	// Verify error message and status
 	var status, storedErrorMsg string
@@ -160,14 +190,14 @@ func TestNotificationLogger_Log_Failed(t *testing.T) {
 
 func TestNotificationLogger_BatchingBehavior_BufferFull(t *testing.T) {
 	db, dbPath := setupTestDB(t)
-	defer os.Remove(dbPath)
-	defer db.Close()
+	defer cleanupTestDBFile(t, dbPath)
+	defer closeSQLDB(t, db)
 
 	logger, err := storage.NewNotificationLogger(db)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	defer logger.Close()
+	defer closeNotificationLogger(t, logger)
 
 	// Log 100 notifications to fill buffer
 	for i := 0; i < 100; i++ {
@@ -207,8 +237,8 @@ func TestNotificationLogger_BatchingBehavior_BufferFull(t *testing.T) {
 
 func TestNotificationLogger_LogAfterClose(t *testing.T) {
 	db, dbPath := setupTestDB(t)
-	defer os.Remove(dbPath)
-	defer db.Close()
+	defer cleanupTestDBFile(t, dbPath)
+	defer closeSQLDB(t, db)
 
 	logger, err := storage.NewNotificationLogger(db)
 	if err != nil {
@@ -228,14 +258,14 @@ func TestNotificationLogger_LogAfterClose(t *testing.T) {
 
 func TestNotificationLogger_BatchingBehavior_TimedFlush(t *testing.T) {
 	db, dbPath := setupTestDB(t)
-	defer os.Remove(dbPath)
-	defer db.Close()
+	defer cleanupTestDBFile(t, dbPath)
+	defer closeSQLDB(t, db)
 
 	logger, err := storage.NewNotificationLogger(db)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	defer logger.Close()
+	defer closeNotificationLogger(t, logger)
 
 	// Log only 10 notifications (not enough to fill buffer)
 	for i := 0; i < 10; i++ {
@@ -275,14 +305,14 @@ func TestNotificationLogger_BatchingBehavior_TimedFlush(t *testing.T) {
 
 func TestNotificationLogger_ManualFlush(t *testing.T) {
 	db, dbPath := setupTestDB(t)
-	defer os.Remove(dbPath)
-	defer db.Close()
+	defer cleanupTestDBFile(t, dbPath)
+	defer closeSQLDB(t, db)
 
 	logger, err := storage.NewNotificationLogger(db)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	defer logger.Close()
+	defer closeNotificationLogger(t, logger)
 
 	// Log 5 notifications
 	for i := 0; i < 5; i++ {
@@ -306,7 +336,10 @@ func TestNotificationLogger_ManualFlush(t *testing.T) {
 	}
 
 	// Manually flush before timer
-	logger.Close()
+	if err := logger.Close(); err != nil {
+		t.Fatalf("Failed to close logger: %v", err)
+	}
+	logger = nil
 
 	// Verify records were flushed immediately
 	var count int
@@ -322,15 +355,18 @@ func TestNotificationLogger_ManualFlush(t *testing.T) {
 
 func TestNotificationLogger_ErrorHandling_DBUnavailable(t *testing.T) {
 	db, dbPath := setupTestDB(t)
-	defer os.Remove(dbPath)
+	defer cleanupTestDBFile(t, dbPath)
 
 	logger, err := storage.NewNotificationLogger(db)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
+	defer closeNotificationLogger(t, logger)
 
 	// Close database to simulate unavailability
-	db.Close()
+	if err := db.Close(); err != nil {
+		t.Fatalf("Failed to close database: %v", err)
+	}
 
 	notification := &providers.Notification{
 		ID:         "test-error-123",
@@ -353,19 +389,22 @@ func TestNotificationLogger_ErrorHandling_DBUnavailable(t *testing.T) {
 	}
 
 	// Flush should also handle error gracefully
-	logger.Close()
+	if err := logger.Close(); err != nil {
+		t.Fatalf("Failed to close logger: %v", err)
+	}
+	logger = nil
 }
 
 func TestNotificationLogger_PreparedStatement_Reuse(t *testing.T) {
 	db, dbPath := setupTestDB(t)
-	defer os.Remove(dbPath)
-	defer db.Close()
+	defer cleanupTestDBFile(t, dbPath)
+	defer closeSQLDB(t, db)
 
 	logger, err := storage.NewNotificationLogger(db)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	defer logger.Close()
+	defer closeNotificationLogger(t, logger)
 
 	// Log multiple notifications to verify prepared statement works multiple times
 	for i := 0; i < 50; i++ {
@@ -388,7 +427,10 @@ func TestNotificationLogger_PreparedStatement_Reuse(t *testing.T) {
 		}
 	}
 
-	logger.Close()
+	if err := logger.Close(); err != nil {
+		t.Fatalf("Failed to close logger: %v", err)
+	}
+	logger = nil
 
 	// Verify all records inserted
 	var count int
@@ -404,14 +446,14 @@ func TestNotificationLogger_PreparedStatement_Reuse(t *testing.T) {
 
 func TestNotificationLogger_Close_FlushesBuffer(t *testing.T) {
 	db, dbPath := setupTestDB(t)
-	defer os.Remove(dbPath)
-	defer db.Close()
+	defer cleanupTestDBFile(t, dbPath)
+	defer closeSQLDB(t, db)
 
 	logger, err := storage.NewNotificationLogger(db)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-
+	defer closeNotificationLogger(t, logger)
 	// Log 5 notifications
 	for i := 0; i < 5; i++ {
 		notification := &providers.Notification{
@@ -434,8 +476,10 @@ func TestNotificationLogger_Close_FlushesBuffer(t *testing.T) {
 	}
 
 	// Close should flush buffer
-	logger.Close()
-
+	if err := logger.Close(); err != nil {
+		t.Fatalf("Failed to close logger: %v", err)
+	}
+	logger = nil
 	// Verify records were flushed
 	var count int
 	err = db.QueryRow("SELECT COUNT(*) FROM notification_logs").Scan(&count)
@@ -450,14 +494,14 @@ func TestNotificationLogger_Close_FlushesBuffer(t *testing.T) {
 
 func TestNotificationLogger_ConcurrentWrites(t *testing.T) {
 	db, dbPath := setupTestDB(t)
-	defer os.Remove(dbPath)
-	defer db.Close()
+	defer cleanupTestDBFile(t, dbPath)
+	defer closeSQLDB(t, db)
 
 	logger, err := storage.NewNotificationLogger(db)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	defer logger.Close()
+	defer closeNotificationLogger(t, logger)
 
 	// Simulate concurrent writes from multiple goroutines
 	done := make(chan bool, 10)
@@ -488,7 +532,10 @@ func TestNotificationLogger_ConcurrentWrites(t *testing.T) {
 		<-done
 	}
 
-	logger.Close()
+	if err := logger.Close(); err != nil {
+		t.Fatalf("Failed to close logger: %v", err)
+	}
+	logger = nil
 
 	// Verify all records inserted
 	var count int
@@ -504,14 +551,14 @@ func TestNotificationLogger_ConcurrentWrites(t *testing.T) {
 
 func BenchmarkNotificationLogger_Log(b *testing.B) {
 	db, dbPath := setupTestDB(&testing.T{})
-	defer os.Remove(dbPath)
-	defer db.Close()
+	defer cleanupTestDBFile(b, dbPath)
+	defer closeSQLDB(b, db)
 
 	logger, err := storage.NewNotificationLogger(db)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
-	defer logger.Close()
+	defer closeNotificationLogger(b, logger)
 
 	notification := &providers.Notification{
 		ID:         "bench-test",
@@ -531,8 +578,5 @@ func BenchmarkNotificationLogger_Log(b *testing.B) {
 			Attempts:     1,
 			IsTest:       false,
 		})
-		if i%100 == 0 {
-			logger.Close()
-		}
 	}
 }

@@ -37,7 +37,11 @@ func main() {
 		logger.Error("Failed to initialize database", "error", err)
 		os.Exit(1)
 	}
-	defer dbWrapper.Close()
+	defer func() {
+		if err := dbWrapper.Close(); err != nil {
+			logger.Error("Failed to close database", "error", err)
+		}
+	}()
 	logger.Info("Database initialized", "path", dbPath)
 
 	// Initialize notification logger
@@ -46,7 +50,11 @@ func main() {
 		logger.Error("Failed to initialize notification logger", "error", err)
 		os.Exit(1)
 	}
-	defer notifLogger.Close()
+	defer func() {
+		if err := notifLogger.Close(); err != nil {
+			logger.Error("Failed to close notification logger", "error", err)
+		}
+	}()
 
 	// Initialize repository for notification history queries
 	repo := storage.NewRepository(dbWrapper.GetConn())
@@ -128,7 +136,9 @@ func main() {
 		// Always register the provider (even if failed)
 		if err := registry.Register(provider); err != nil {
 			logger.Error("Failed to register provider", "id", cfg.ID, "error", err)
-			provider.Close()
+			if closeErr := provider.Close(); closeErr != nil {
+				logger.Error("Failed to close provider after registration failure", "id", cfg.ID, "error", closeErr)
+			}
 			continue
 		}
 	}

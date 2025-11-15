@@ -20,7 +20,11 @@ func TestHealthEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Fatalf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
@@ -37,7 +41,11 @@ func TestHealthCheckJSONStructure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Fatalf("Failed to close response body: %v", err)
+		}
+	}()
 
 	var response map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
@@ -71,7 +79,7 @@ func TestHealthCheckJSONStructure(t *testing.T) {
 // T065: Contract tests for GET /ready endpoint
 func TestReadyEndpoint_AllHealthy(t *testing.T) {
 	t.Skip("TODO: T065 - Implement once /ready handler with database check is implemented")
-	
+
 	// This test will verify:
 	// 1. Setup registry with at least one provider
 	// 2. Setup repository with healthy database connection
@@ -84,7 +92,7 @@ func TestReadyEndpoint_AllHealthy(t *testing.T) {
 
 func TestReadyEndpoint_NoProviders(t *testing.T) {
 	t.Skip("TODO: T065 - Implement once /ready handler is implemented")
-	
+
 	// This test will verify:
 	// 1. Setup empty registry (no providers)
 	// 2. Setup repository with healthy database
@@ -96,7 +104,7 @@ func TestReadyEndpoint_NoProviders(t *testing.T) {
 
 func TestReadyEndpoint_DatabaseUnhealthy(t *testing.T) {
 	t.Skip("TODO: T065 - Implement once /ready handler with database check is implemented")
-	
+
 	// This test will verify:
 	// 1. Setup registry with providers
 	// 2. Setup repository with broken/nil database connection
@@ -104,13 +112,13 @@ func TestReadyEndpoint_DatabaseUnhealthy(t *testing.T) {
 	// 4. Verify response status is 503
 	// 5. Verify response has status="not_ready"
 	// 6. Verify checks.database indicates failure
-	// 
+	//
 	// This ensures Kubernetes readiness probe can detect database issues
 }
 
 func TestReadyEndpoint_JSONStructure(t *testing.T) {
 	t.Skip("TODO: T065 - Implement once /ready handler is implemented")
-	
+
 	// This test verifies the response structure matches the OpenAPI spec:
 	// {
 	//   "status": "ready" | "not_ready",

@@ -25,31 +25,41 @@ func InitDB(dbPath string) (*DB, error) {
 
 	// Enable WAL mode for better concurrency
 	if _, err := conn.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close database after WAL mode error: %v\n", closeErr)
+		}
 		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
 	}
 
 	// Set synchronous mode to NORMAL for balanced durability vs performance
 	if _, err := conn.Exec("PRAGMA synchronous=NORMAL"); err != nil {
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close database after synchronous mode error: %v\n", closeErr)
+		}
 		return nil, fmt.Errorf("failed to set synchronous mode: %w", err)
 	}
 
 	// Set busy timeout to 5000ms
 	if _, err := conn.Exec("PRAGMA busy_timeout=5000"); err != nil {
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close database after busy_timeout error: %v\n", closeErr)
+		}
 		return nil, fmt.Errorf("failed to set busy_timeout: %w", err)
 	}
 
 	// Enable foreign keys
 	if _, err := conn.Exec("PRAGMA foreign_keys=ON"); err != nil {
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close database after foreign key error: %v\n", closeErr)
+		}
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
 	// Execute schema creation
 	if _, err := conn.Exec(Schema); err != nil {
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close database after schema creation error: %v\n", closeErr)
+		}
 		return nil, fmt.Errorf("failed to create schema: %w", err)
 	}
 

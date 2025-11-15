@@ -71,7 +71,9 @@ func (tp *testProvider) Test(ctx context.Context) error {
 func setupTestServer(t *testing.T) (*http.Server, *providers.Registry, *sql.DB, *storage.NotificationLogger, func()) {
 	// Setup test database
 	dbPath := "./test_server.db"
-	os.Remove(dbPath)
+	if err := os.Remove(dbPath); err != nil && !os.IsNotExist(err) {
+		t.Fatalf("Failed to remove existing test database: %v", err)
+	}
 
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
@@ -100,7 +102,9 @@ func setupTestServer(t *testing.T) (*http.Server, *providers.Registry, *sql.DB, 
 			Type: "test",
 		},
 	}
-	registry.Register(testProv)
+	if err := registry.Register(testProv); err != nil {
+		t.Fatalf("Failed to register test provider: %v", err)
+	}
 
 	// Setup router with nil repository (not testing history in this test)
 	router := api.SetupRouter(registry, logger, nil)
@@ -125,10 +129,18 @@ func setupTestServer(t *testing.T) (*http.Server, *providers.Registry, *sql.DB, 
 	cleanup := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		server.Shutdown(ctx)
-		logger.Close()
-		db.Close()
-		os.Remove(dbPath)
+		if err := server.Shutdown(ctx); err != nil {
+			t.Fatalf("Failed to shut down server: %v", err)
+		}
+		if err := logger.Close(); err != nil {
+			t.Fatalf("Failed to close notification logger: %v", err)
+		}
+		if err := db.Close(); err != nil {
+			t.Fatalf("Failed to close database: %v", err)
+		}
+		if err := os.Remove(dbPath); err != nil && !os.IsNotExist(err) {
+			t.Fatalf("Failed to remove database file: %v", err)
+		}
 	}
 
 	return server, registry, db, logger, cleanup
@@ -142,7 +154,7 @@ func TestServer_HealthCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make health check request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer closeResponseBody(t, resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
@@ -167,7 +179,7 @@ func TestServer_GetProviders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make providers request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer closeResponseBody(t, resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
@@ -198,7 +210,11 @@ func TestServer_GetProviderByID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make provider request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Fatalf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
@@ -226,7 +242,7 @@ func TestServer_GetProviderByID_NotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make provider request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer closeResponseBody(t, resp.Body)
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("Expected status 404, got %d", resp.StatusCode)
@@ -270,7 +286,11 @@ func TestServer_SendNotification_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make notification request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Fatalf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
@@ -353,7 +373,7 @@ func TestServer_SendNotification_InvalidProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make notification request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer closeResponseBody(t, resp.Body)
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("Expected status 404, got %d", resp.StatusCode)
@@ -378,7 +398,7 @@ func TestServer_SendNotification_MissingFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make notification request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer closeResponseBody(t, resp.Body)
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", resp.StatusCode)
@@ -393,7 +413,9 @@ func TestServer_GracefulShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make health check request: %v", err)
 	}
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		t.Fatalf("Failed to close response body: %v", err)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected server to be running, got status %d", resp.StatusCode)
@@ -416,10 +438,23 @@ func TestServer_GracefulShutdown(t *testing.T) {
 
 	// Cleanup
 	for _, provider := range registry.List() {
-		provider.Close()
+		if err := provider.Close(); err != nil {
+			t.Errorf("Failed to close provider %s: %v", provider.GetID(), err)
+		}
 	}
-	db.Close()
-	os.Remove("./test_server.db")
+	if err := db.Close(); err != nil {
+		t.Errorf("Failed to close database: %v", err)
+	}
+	if err := os.Remove("./test_server.db"); err != nil && !os.IsNotExist(err) {
+		t.Errorf("Failed to remove database file: %v", err)
+	}
+}
+
+func closeResponseBody(t *testing.T, closer io.Closer) {
+	t.Helper()
+	if err := closer.Close(); err != nil {
+		t.Fatalf("Failed to close response body: %v", err)
+	}
 }
 
 func TestServer_ConcurrentRequests(t *testing.T) {
@@ -460,7 +495,9 @@ func TestServer_ConcurrentRequests(t *testing.T) {
 			if err != nil {
 				t.Logf("Request %d failed: %v", id, err)
 			} else {
-				resp.Body.Close()
+				if err := resp.Body.Close(); err != nil {
+					t.Logf("Request %d failed to close body: %v", id, err)
+				}
 			}
 			done <- true
 		}(i)

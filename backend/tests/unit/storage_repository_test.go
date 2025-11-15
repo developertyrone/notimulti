@@ -9,7 +9,7 @@ import (
 
 func TestRepositoryHistoryAndCursor(t *testing.T) {
 	repo, db := setupTestRepository(t)
-	defer db.Close()
+	defer closeSQLDB(t, db)
 
 	base := time.Now().Add(-2 * time.Hour)
 	firstID := insertLog(t, db, "email-1", "email", storage.StatusSent, base, false)
@@ -41,7 +41,7 @@ func TestRepositoryHistoryAndCursor(t *testing.T) {
 
 func TestRepositoryGetNotificationByIDAndCleanup(t *testing.T) {
 	repo, db := setupTestRepository(t)
-	defer db.Close()
+	defer closeSQLDB(t, db)
 
 	created := time.Now().Add(-48 * time.Hour)
 	id := insertLog(t, db, "email-2", "email", storage.StatusFailed, created, true)
@@ -80,7 +80,7 @@ func TestRepositoryGetNotificationByIDAndCleanup(t *testing.T) {
 
 func TestRepositoryHistoryFiltersAdvanced(t *testing.T) {
 	repo, db := setupTestRepository(t)
-	defer db.Close()
+	defer closeSQLDB(t, db)
 
 	oldest := time.Now().Add(-3 * time.Hour)
 	first := insertLog(t, db, "email-advanced", "email", storage.StatusSent, oldest, false)
@@ -131,7 +131,7 @@ func TestRepositoryHistoryFiltersAdvanced(t *testing.T) {
 
 func TestRepositoryPing(t *testing.T) {
 	repo, db := setupTestRepository(t)
-	defer db.Close()
+	defer closeSQLDB(t, db)
 
 	if err := repo.Ping(); err != nil {
 		t.Fatalf("Ping failed: %v", err)

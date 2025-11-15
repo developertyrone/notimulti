@@ -29,7 +29,7 @@ func TestWatcherIntegrationConfigChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 
@@ -99,7 +99,7 @@ func TestWatcherIntegrationConcurrentChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(200 * time.Millisecond)
@@ -159,7 +159,7 @@ func TestWatcherIntegrationRapidUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(200 * time.Millisecond)
@@ -190,7 +190,7 @@ func TestWatcherIntegrationRapidUpdates(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Clean up
-	os.Remove(configPath)
+	cleanupFile(t, configPath)
 
 	// If we reach here, debouncing worked correctly (no crash from reload storm)
 	t.Log("Watcher successfully debounced rapid updates")
@@ -212,7 +212,7 @@ func TestWatcherIntegrationChecksumDetection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(200 * time.Millisecond)
@@ -243,7 +243,7 @@ func TestWatcherIntegrationChecksumDetection(t *testing.T) {
 	}
 
 	// Clean up
-	os.Remove(configPath)
+	cleanupFile(t, configPath)
 
 	// If we reach here, checksum detection prevented unnecessary reloads
 	t.Log("Watcher successfully detected unchanged configs via checksum")
@@ -265,7 +265,7 @@ func TestWatcherIntegrationMixedFileTypes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(200 * time.Millisecond)
@@ -295,9 +295,9 @@ func TestWatcherIntegrationMixedFileTypes(t *testing.T) {
 	}
 
 	// Clean up
-	os.Remove(txtPath)
-	os.Remove(yamlPath)
-	os.Remove(backupPath)
+	cleanupFile(t, txtPath)
+	cleanupFile(t, yamlPath)
+	cleanupFile(t, backupPath)
 
 	t.Log("Watcher correctly ignored non-JSON files")
 }

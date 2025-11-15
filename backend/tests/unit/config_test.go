@@ -257,7 +257,11 @@ func TestLoadFile(t *testing.T) {
 			if err := os.WriteFile(filename, []byte(tt.content), 0644); err != nil {
 				t.Fatal(err)
 			}
-			defer os.Remove(filename)
+			t.Cleanup(func() {
+				if err := os.Remove(filename); err != nil && !os.IsNotExist(err) {
+					t.Fatalf("failed to remove file %s: %v", filename, err)
+				}
+			})
 
 			config, err := loader.LoadFile(filename)
 

@@ -27,7 +27,7 @@ var testFrontendFS embed.FS
 
 func TestHandleGetNotificationHistoryResponses(t *testing.T) {
 	repo, db := setupTestRepository(t)
-	defer db.Close()
+	defer closeSQLDB(t, db)
 
 	now := time.Now().Add(-time.Minute)
 	insertLog(t, db, "email-1", "email", storage.StatusSent, now, false)
@@ -85,7 +85,7 @@ func TestHandleGetNotificationHistoryResponses(t *testing.T) {
 
 func TestHandleGetNotificationDetail(t *testing.T) {
 	repo, db := setupTestRepository(t)
-	defer db.Close()
+	defer closeSQLDB(t, db)
 
 	id := insertLog(t, db, "email-2", "email", storage.StatusSent, time.Now(), false)
 
@@ -146,7 +146,9 @@ func TestHandleReadinessCheck(t *testing.T) {
 	handler := api.HandleReadinessCheck(registry, repo)
 
 	t.Run("not ready when db closed", func(t *testing.T) {
-		db.Close()
+		if err := db.Close(); err != nil {
+			t.Fatalf("failed to close db: %v", err)
+		}
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/ready", nil)
@@ -169,7 +171,11 @@ func TestHandleReadinessCheck(t *testing.T) {
 	t.Run("ready when checks pass", func(t *testing.T) {
 		// Recreate resources for this subtest
 		repoReady, dbReady := setupTestRepository(t)
-		defer dbReady.Close()
+		defer func() {
+			if err := dbReady.Close(); err != nil {
+				t.Fatalf("failed to close db: %v", err)
+			}
+		}()
 
 		mock := &testhelpers.MockProvider{
 			IDFunc:   func() string { return "ok" },

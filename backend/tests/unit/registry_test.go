@@ -61,7 +61,7 @@ func TestRegistryGet(t *testing.T) {
 		TypeFunc: func() string { return "mock" },
 	}
 
-	registry.Register(mockProvider)
+	mustRegisterProvider(t, registry, mockProvider)
 
 	// Test successful retrieval
 	provider, err := registry.Get("test-provider")
@@ -92,7 +92,7 @@ func TestRegistryList(t *testing.T) {
 			IDFunc:   func() string { return "provider-" + id },
 			TypeFunc: func() string { return "mock" },
 		}
-		registry.Register(mockProvider)
+		mustRegisterProvider(t, registry, mockProvider)
 	}
 
 	providers := registry.List()
@@ -114,7 +114,7 @@ func TestRegistryRemove(t *testing.T) {
 		},
 	}
 
-	registry.Register(mockProvider)
+	mustRegisterProvider(t, registry, mockProvider)
 
 	// Test successful removal
 	err := registry.Remove("test-provider")
@@ -151,7 +151,7 @@ func TestRegistryClear(t *testing.T) {
 				return nil
 			},
 		}
-		registry.Register(mockProvider)
+		mustRegisterProvider(t, registry, mockProvider)
 	}
 
 	err := registry.Clear()
@@ -181,7 +181,7 @@ func TestRegistryReplaceProvider(t *testing.T) {
 			return nil
 		},
 	}
-	registry.Register(mockProvider1)
+	mustRegisterProvider(t, registry, mockProvider1)
 
 	// Replace with new provider with same ID
 	mockProvider2 := &testhelpers.MockProvider{
@@ -192,7 +192,7 @@ func TestRegistryReplaceProvider(t *testing.T) {
 			return nil
 		},
 	}
-	registry.Register(mockProvider2)
+	mustRegisterProvider(t, registry, mockProvider2)
 
 	// Verify old provider was closed
 	if closeCount != 1 {
@@ -225,7 +225,9 @@ func TestRegistryConcurrentAccess(t *testing.T) {
 				TypeFunc:  func() string { return "mock" },
 				CloseFunc: func() error { return nil },
 			}
-			registry.Register(mockProvider)
+			if err := registry.Register(mockProvider); err != nil {
+				panic(err)
+			}
 		}(i)
 	}
 
@@ -234,7 +236,7 @@ func TestRegistryConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			registry.Get(string(rune('a' + index)))
+			_, _ = registry.Get(string(rune('a' + index)))
 		}(i)
 	}
 
@@ -243,7 +245,7 @@ func TestRegistryConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			registry.List()
+			_ = registry.List()
 		}()
 	}
 
@@ -265,7 +267,9 @@ func TestRegistryConcurrentRemoval(t *testing.T) {
 			TypeFunc:  func() string { return "mock" },
 			CloseFunc: func() error { return nil },
 		}
-		registry.Register(mockProvider)
+		if err := registry.Register(mockProvider); err != nil {
+			panic(err)
+		}
 	}
 
 	// Concurrent removals
@@ -274,7 +278,9 @@ func TestRegistryConcurrentRemoval(t *testing.T) {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			registry.Remove(string(rune('a' + index)))
+			if err := registry.Remove(string(rune('a' + index))); err != nil {
+				panic(err)
+			}
 		}(i)
 	}
 
@@ -320,10 +326,17 @@ func TestMockProviderStatus(t *testing.T) {
 
 	status := mockProvider.GetStatus()
 	if status == nil {
-		t.Error("GetStatus() returned nil")
+		t.Fatalf("GetStatus() returned nil")
 	}
 	if status.Status != providers.StatusActive {
-		t.Errorf("Expected status active, got %s", status.Status)
+		t.Fatalf("Expected status active, got %s", status.Status)
+	}
+}
+
+func mustRegisterProvider(t *testing.T, registry *providers.Registry, provider providers.Provider) {
+	t.Helper()
+	if err := registry.Register(provider); err != nil {
+		t.Fatalf("failed to register provider %s: %v", provider.GetID(), err)
 	}
 }
 
@@ -401,7 +414,7 @@ func TestRegistryReplaceNilProvider(t *testing.T) {
 		TypeFunc:  func() string { return "mock" },
 		CloseFunc: func() error { return nil },
 	}
-	registry.Register(oldProvider)
+	mustRegisterProvider(t, registry, oldProvider)
 
 	// Attempt to replace with nil
 	err := registry.Replace("test-provider", nil)
@@ -429,7 +442,7 @@ func TestRegistryReplaceIDMismatch(t *testing.T) {
 		TypeFunc:  func() string { return "mock" },
 		CloseFunc: func() error { return nil },
 	}
-	registry.Register(oldProvider)
+	mustRegisterProvider(t, registry, oldProvider)
 
 	// Attempt to replace with different ID
 	newProvider := &testhelpers.MockProvider{
@@ -469,7 +482,7 @@ func TestRegistryReplaceConcurrentSend(t *testing.T) {
 		},
 		CloseFunc: func() error { return nil },
 	}
-	registry.Register(oldProvider)
+	mustRegisterProvider(t, registry, oldProvider)
 
 	// Start concurrent Send() operations
 	var wg sync.WaitGroup
@@ -484,7 +497,9 @@ func TestRegistryReplaceConcurrentSend(t *testing.T) {
 					Recipient: "test",
 					Message:   "test",
 				}
-				provider.Send(context.Background(), notification)
+				if err := provider.Send(context.Background(), notification); err != nil {
+					panic(err)
+				}
 			}
 		}(i)
 	}
@@ -533,7 +548,7 @@ func TestRegistryReplaceCloseError(t *testing.T) {
 			return context.Canceled // Simulate close failure
 		},
 	}
-	registry.Register(oldProvider)
+	mustRegisterProvider(t, registry, oldProvider)
 
 	// New provider
 	newProvider := &testhelpers.MockProvider{

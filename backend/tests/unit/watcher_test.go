@@ -41,7 +41,7 @@ func TestWatcherDebouncing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopUnitWatcher(t, watcher)
 
 	// Start watcher
 	watcher.Start()
@@ -127,7 +127,7 @@ func TestWatcherMalformedConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopUnitWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(100 * time.Millisecond)
@@ -184,7 +184,7 @@ func TestWatcherEventHandling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopUnitWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(100 * time.Millisecond)
@@ -230,6 +230,16 @@ func TestWatcherEventHandling(t *testing.T) {
 	t.Log("Event handling test completed - watcher processed CREATE/WRITE/REMOVE events")
 }
 
+func stopUnitWatcher(t *testing.T, watcher *config.Watcher) {
+	t.Helper()
+	if watcher == nil {
+		return
+	}
+	if err := watcher.Stop(); err != nil {
+		t.Fatalf("Failed to stop watcher: %v", err)
+	}
+}
+
 // TestWatcherIgnoresNonJSONFiles tests that non-JSON files are ignored
 func TestWatcherIgnoresNonJSONFiles(t *testing.T) {
 	testDir := t.TempDir()
@@ -241,7 +251,7 @@ func TestWatcherIgnoresNonJSONFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopUnitWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(100 * time.Millisecond)
@@ -277,7 +287,7 @@ func TestWatcherCreatesEmailProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopUnitWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(100 * time.Millisecond)

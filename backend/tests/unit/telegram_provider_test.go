@@ -19,17 +19,17 @@ func TestTelegramProviderSendAndTest(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case strings.Contains(r.URL.Path, "getMe"):
-			fmt.Fprint(w, `{"ok":true,"result":{"id":1,"is_bot":true,"first_name":"Unit","username":"unit_bot"}}`)
+			writeTelegramResponse(t, w, `{"ok":true,"result":{"id":1,"is_bot":true,"first_name":"Unit","username":"unit_bot"}}`)
 		case strings.Contains(r.URL.Path, "sendMessage"):
 			attempt := atomic.AddInt32(&sendAttempts, 1)
 			if attempt == 1 {
 				w.WriteHeader(http.StatusTooManyRequests)
-				fmt.Fprint(w, `{"ok":false,"error_code":429,"parameters":{"retry_after":1},"description":"Too Many Requests"}`)
+				writeTelegramResponse(t, w, `{"ok":false,"error_code":429,"parameters":{"retry_after":1},"description":"Too Many Requests"}`)
 				return
 			}
-			fmt.Fprint(w, `{"ok":true,"result":{"message_id":42}}`)
+			writeTelegramResponse(t, w, `{"ok":true,"result":{"message_id":42}}`)
 		default:
-			fmt.Fprint(w, `{"ok":true}`)
+			writeTelegramResponse(t, w, `{"ok":true}`)
 		}
 	}))
 	defer server.Close()
@@ -46,7 +46,7 @@ func TestTelegramProviderSendAndTest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create telegram provider: %v", err)
 	}
-	defer provider.Close()
+	defer closeTelegramProvider(t, provider)
 
 	notification := &providers.Notification{
 		ID:         "notif-1",
@@ -83,5 +83,22 @@ func TestTelegramProviderSendAndTest(t *testing.T) {
 
 	if err := provider.Test(context.Background()); err != nil {
 		t.Fatalf("expected test notification to succeed, got %v", err)
+	}
+}
+
+func writeTelegramResponse(t *testing.T, w http.ResponseWriter, payload string) {
+	t.Helper()
+	if _, err := fmt.Fprint(w, payload); err != nil {
+		t.Fatalf("failed to write telegram response: %v", err)
+	}
+}
+
+func closeTelegramProvider(t *testing.T, provider providers.Provider) {
+	t.Helper()
+	if provider == nil {
+		return
+	}
+	if err := provider.Close(); err != nil {
+		t.Fatalf("failed to close telegram provider: %v", err)
 	}
 }

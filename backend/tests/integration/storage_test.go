@@ -20,7 +20,7 @@ func TestDatabaseInitialization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitDB() failed: %v", err)
 	}
-	defer db.Close()
+	defer closeStorageDB(t, db)
 
 	// Verify connection is alive
 	if err := db.Ping(); err != nil {
@@ -41,7 +41,7 @@ func TestSchemaCreation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitDB() failed: %v", err)
 	}
-	defer db.Close()
+	defer closeStorageDB(t, db)
 
 	// Verify notification_logs table exists
 	var tableName string
@@ -66,14 +66,14 @@ func TestTableStructure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitDB() failed: %v", err)
 	}
-	defer db.Close()
+	defer closeStorageDB(t, db)
 
 	// Get table info
 	rows, err := db.GetConn().Query("PRAGMA table_info(notification_logs)")
 	if err != nil {
 		t.Fatalf("Failed to get table info: %v", err)
 	}
-	defer rows.Close()
+	defer closeRows(t, rows)
 
 	expectedColumns := map[string]bool{
 		"id":            false,
@@ -121,7 +121,7 @@ func TestIndexCreation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitDB() failed: %v", err)
 	}
-	defer db.Close()
+	defer closeStorageDB(t, db)
 
 	// Get indexes
 	rows, err := db.GetConn().Query(
@@ -130,7 +130,7 @@ func TestIndexCreation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to query indexes: %v", err)
 	}
-	defer rows.Close()
+	defer closeRows(t, rows)
 
 	expectedIndexes := map[string]bool{
 		"idx_provider_created": false,
@@ -172,7 +172,7 @@ func TestWALMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitDB() failed: %v", err)
 	}
-	defer db.Close()
+	defer closeStorageDB(t, db)
 
 	// Check journal mode
 	var mode string
@@ -194,7 +194,7 @@ func TestBusyTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitDB() failed: %v", err)
 	}
-	defer db.Close()
+	defer closeStorageDB(t, db)
 
 	// Check busy timeout
 	var timeout int
@@ -216,7 +216,7 @@ func TestConcurrentWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitDB() failed: %v", err)
 	}
-	defer db.Close()
+	defer closeStorageDB(t, db)
 
 	// Perform concurrent writes
 	var wg sync.WaitGroup
@@ -272,14 +272,16 @@ func TestMultipleInitializations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("First InitDB() failed: %v", err)
 	}
-	db1.Close()
+	if err := db1.Close(); err != nil {
+		t.Fatalf("Failed to close first database: %v", err)
+	}
 
 	// Second initialization (should not fail due to IF NOT EXISTS)
 	db2, err := storage.InitDB(dbPath)
 	if err != nil {
 		t.Fatalf("Second InitDB() failed: %v", err)
 	}
-	defer db2.Close()
+	defer closeStorageDB(t, db2)
 
 	// Verify schema is still intact
 	var tableName string
@@ -299,5 +301,19 @@ func TestInvalidDatabasePath(t *testing.T) {
 	_, err := storage.InitDB(dbPath)
 	if err == nil {
 		t.Error("Expected error for invalid database path, got nil")
+	}
+}
+
+func closeStorageDB(t *testing.T, db *storage.DB) {
+	t.Helper()
+	if err := db.Close(); err != nil {
+		t.Fatalf("Failed to close database: %v", err)
+	}
+}
+
+func closeRows(t *testing.T, rows *sql.Rows) {
+	t.Helper()
+	if err := rows.Close(); err != nil {
+		t.Fatalf("Failed to close rows: %v", err)
 	}
 }

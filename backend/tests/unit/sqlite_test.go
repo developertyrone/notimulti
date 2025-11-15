@@ -17,8 +17,12 @@ func TestInitDBCreatesSchema(t *testing.T) {
 		t.Fatalf("InitDB failed: %v", err)
 	}
 	t.Cleanup(func() {
-		db.Close()
-		os.Remove(dbPath)
+		if err := db.Close(); err != nil {
+			t.Fatalf("failed to close db: %v", err)
+		}
+		if err := os.Remove(dbPath); err != nil && !os.IsNotExist(err) {
+			t.Fatalf("failed to remove db file: %v", err)
+		}
 	})
 
 	if err := db.Ping(); err != nil {

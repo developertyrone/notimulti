@@ -73,7 +73,11 @@ func ServeFrontend(router *gin.Engine, frontendFS embed.FS) {
 			c.String(http.StatusNotFound, "Frontend not available")
 			return
 		}
-		defer data.Close()
+		defer func() {
+			if closeErr := data.Close(); closeErr != nil {
+				_ = c.Error(closeErr)
+			}
+		}()
 
 		c.DataFromReader(http.StatusOK, -1, "text/html", data, nil)
 	})
