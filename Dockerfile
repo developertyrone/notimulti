@@ -24,8 +24,8 @@ RUN go mod download
 # Copy backend source
 COPY backend/ ./
 
-# Copy built frontend from previous stage
-COPY --from=frontend-builder /app/frontend/dist ./cmd/server/dist
+# Copy built frontend from previous stage (Vite outputs to ../backend/cmd/server/dist)
+COPY --from=frontend-builder /app/backend/cmd/server/dist ./cmd/server/dist
 
 # Build backend with optimizations (T072)
 # -ldflags="-s -w" strips debug info and symbol table (reduces size ~30%)
