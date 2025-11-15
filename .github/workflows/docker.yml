@@ -37,7 +37,7 @@ jobs:
       
       - name: Run tests with race detector
         working-directory: backend
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+        run: go test -race -coverpkg=./... -coverprofile=coverage.out -covermode=atomic ./tests/...
       
       # T089: Verify coverage ≥80% per NFR-018
       - name: Check coverage threshold
