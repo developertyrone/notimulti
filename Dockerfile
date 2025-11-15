@@ -1,10 +1,12 @@
+# syntax=docker/dockerfile:1.7
+
 # Stage 1: Frontend build
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 # Copy package files and install dependencies
 COPY frontend/package*.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # Copy frontend source and build
 COPY frontend/ ./
@@ -19,7 +21,7 @@ RUN apk add --no-cache gcc musl-dev
 
 # Copy go mod files and download dependencies
 COPY backend/go.mod backend/go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 # Copy backend source
 COPY backend/ ./
@@ -29,7 +31,9 @@ COPY --from=frontend-builder /app/backend/cmd/server/dist ./cmd/server/dist
 
 # Build backend with optimizations (T072)
 # -ldflags="-s -w" strips debug info and symbol table (reduces size ~30%)
-RUN CGO_ENABLED=1 GOOS=linux go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=1 GOOS=linux go build \
     -ldflags="-s -w" \
     -o server \
     ./cmd/server

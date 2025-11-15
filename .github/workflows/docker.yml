@@ -150,6 +150,15 @@ jobs:
             org.opencontainers.image.title=Notimulti
             org.opencontainers.image.description=Centralized notification server
             org.opencontainers.image.vendor=developertyrone
+
+      - name: Determine build platforms
+        id: platforms
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "value=linux/amd64" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=linux/amd64,linux/arm64" >> "$GITHUB_OUTPUT"
+          fi
       
       # T093, T094, T095, T096, T099: Build and push
       - name: Build and push Docker image
@@ -159,7 +168,7 @@ jobs:
           context: .
           file: ./Dockerfile
           # T094: Multi-arch build
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ steps.platforms.outputs.value }}
           # T098: Only push if not PR
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
