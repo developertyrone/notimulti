@@ -57,6 +57,8 @@ pnpm-debug.log*
 lerna-debug.log*
 
 dist/
+!backend/tests/unit/dist/
+!backend/tests/unit/dist/**
 dist-ssr/
 build/
 *.local
