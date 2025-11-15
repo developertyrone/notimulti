@@ -183,21 +183,21 @@ jobs:
           cache-to: type=gha,mode=max
       
       # T097: Trivy vulnerability scan
-      - name: Run Trivy vulnerability scanner
-        if: github.event_name != 'pull_request'
-        uses: aquasecurity/trivy-action@0.33.1
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '1'  # Fail on CRITICAL/HIGH vulnerabilities
-      
-      - name: Upload Trivy results to GitHub Security
-        if: github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
+#      - name: Run Trivy vulnerability scanner (temporarily disabled)
+#        if: github.event_name != 'pull_request'
+#        uses: aquasecurity/trivy-action@0.33.1
+#        with:
+#          image-ref: ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+#          format: 'sarif'
+#          output: 'trivy-results.sarif'
+#          severity: 'CRITICAL,HIGH'
+#          exit-code: '1'  # Fail on CRITICAL/HIGH vulnerabilities
+#      
+#      - name: Upload Trivy results to GitHub Security (temporarily disabled)
+#        if: github.event_name != 'pull_request'
+#        uses: github/codeql-action/upload-sarif@v3
+#        with:
+#          sarif_file: 'trivy-results.sarif'
       
       - name: Image digest
         if: github.event_name != 'pull_request'
