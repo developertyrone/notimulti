@@ -11,13 +11,9 @@ import (
 	"time"
 
 	"github.com/developertyrone/notimulti/internal/providers"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 func TestTelegramProviderSendAndTest(t *testing.T) {
-	oldEndpoint := tgbotapi.APIEndpoint
-	defer func() { tgbotapi.APIEndpoint = oldEndpoint }()
-
 	var sendAttempts int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -38,13 +34,12 @@ func TestTelegramProviderSendAndTest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	tgbotapi.APIEndpoint = server.URL + "/bot%s/%s"
-
 	cfg := &providers.TelegramConfig{
 		BotToken:       "token",
 		DefaultChatID:  "5551234",
 		ParseMode:      "HTML",
-		TimeoutSeconds: 1,
+		TimeoutSeconds: 5,
+		APIEndpoint:    server.URL + "/bot%s/%s",
 	}
 
 	provider, err := providers.NewTelegramProvider("telegram-unit", cfg)
