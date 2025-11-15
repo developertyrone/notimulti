@@ -236,12 +236,22 @@ func HandleGetNotificationHistory(repo *storage.Repository) gin.HandlerFunc {
 
 		// Parse cursor if provided
 		if cursorStr := c.Query("cursor"); cursorStr != "" {
-			fmt.Sscanf(cursorStr, "%d", &filters.Cursor)
+			if _, err := fmt.Sscanf(cursorStr, "%d", &filters.Cursor); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "cursor must be a valid integer",
+				})
+				return
+			}
 		}
 
 		// Parse page size if provided
 		if pageSizeStr := c.Query("page_size"); pageSizeStr != "" {
-			fmt.Sscanf(pageSizeStr, "%d", &filters.PageSize)
+			if _, err := fmt.Sscanf(pageSizeStr, "%d", &filters.PageSize); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "page_size must be a valid integer",
+				})
+				return
+			}
 			if filters.PageSize < 1 || filters.PageSize > 100 {
 				c.JSON(http.StatusBadRequest, gin.H{
 					"error": "page_size must be between 1 and 100",

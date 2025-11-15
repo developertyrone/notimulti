@@ -3,6 +3,8 @@ package contract
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -26,11 +28,24 @@ func setupTestRouter() *httptest.Server {
 	}
 	emailProvider, _ := providers.NewEmailProvider("email-test", emailConfig)
 	if emailProvider != nil {
-		registry.Register(emailProvider)
+		mustRegisterProvider(registry, emailProvider)
 	}
 
 	router := api.SetupRouter(registry, nil, nil)
 	return httptest.NewServer(router)
+}
+
+func closeBody(t *testing.T, closer io.Closer) {
+	t.Helper()
+	if err := closer.Close(); err != nil {
+		t.Fatalf("Failed to close response body: %v", err)
+	}
+}
+
+func mustRegisterProvider(registry *providers.Registry, provider providers.Provider) {
+	if err := registry.Register(provider); err != nil {
+		panic(fmt.Sprintf("failed to register provider %s: %v", provider.GetID(), err))
+	}
 }
 
 func TestPostNotificationValidTelegram(t *testing.T) {
@@ -56,7 +71,7 @@ func TestPostNotificationValidEmail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer closeBody(t, resp.Body)
 
 	if resp.StatusCode != http.StatusCreated {
 		t.Errorf("Expected status 201, got %d", resp.StatusCode)
@@ -87,7 +102,7 @@ func TestPostNotificationInvalidProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer closeBody(t, resp.Body)
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("Expected status 404, got %d", resp.StatusCode)
@@ -141,7 +156,7 @@ func TestPostNotificationMissingRequiredFields(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to make request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer closeBody(t, resp.Body)
 
 			if resp.StatusCode != http.StatusBadRequest {
 				t.Errorf("Expected status 400, got %d", resp.StatusCode)
@@ -180,7 +195,7 @@ func TestPostNotificationMessageExceeds4096Chars(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer closeBody(t, resp.Body)
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status 400 for message exceeding limit, got %d", resp.StatusCode)
@@ -253,7 +268,7 @@ func TestPostNotificationMetadataExceedsLimits(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to make request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer closeBody(t, resp.Body)
 
 			if resp.StatusCode != http.StatusBadRequest {
 				t.Errorf("Expected status 400 for metadata exceeding limits, got %d", resp.StatusCode)

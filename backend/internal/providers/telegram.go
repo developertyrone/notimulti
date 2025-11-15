@@ -27,7 +27,16 @@ func NewTelegramProvider(id string, config *TelegramConfig) (*TelegramProvider, 
 		return nil, fmt.Errorf("bot_token is required")
 	}
 
-	bot, err := tgbotapi.NewBotAPI(config.BotToken)
+	var (
+		bot *tgbotapi.BotAPI
+		err error
+	)
+
+	if config.APIEndpoint != "" {
+		bot, err = tgbotapi.NewBotAPIWithAPIEndpoint(config.BotToken, config.APIEndpoint)
+	} else {
+		bot, err = tgbotapi.NewBotAPI(config.BotToken)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create bot API: %w", err)
 	}
@@ -180,16 +189,16 @@ func (tp *TelegramProvider) Test(ctx context.Context) error {
 
 	// Send test notification
 	err = tp.Send(ctx, testNotification)
-	
+
 	// Update last test metadata (T051)
 	now := time.Now()
 	tp.lastTestAt = &now
-	
+
 	if err != nil {
 		tp.lastTestStatus = "failed"
 		return fmt.Errorf("test notification failed: %w", err)
 	}
-	
+
 	tp.lastTestStatus = "success"
 	return nil
 }

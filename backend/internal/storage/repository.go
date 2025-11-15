@@ -102,7 +102,9 @@ func (r *Repository) GetNotificationHistory(filters HistoryFilters) ([]Notificat
 	if err != nil {
 		return nil, nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var entries []NotificationLogEntry
 	for rows.Next() {

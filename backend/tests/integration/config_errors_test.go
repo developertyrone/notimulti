@@ -28,7 +28,7 @@ func TestConfigErrorMalformedJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(200 * time.Millisecond)
@@ -69,8 +69,8 @@ func TestConfigErrorMalformedJSON(t *testing.T) {
 	time.Sleep(600 * time.Millisecond)
 
 	// Clean up
-	os.Remove(malformedPath)
-	os.Remove(validPath)
+	cleanupFile(t, malformedPath)
+	cleanupFile(t, validPath)
 
 	// If we reach here, the watcher handled malformed JSON gracefully
 	t.Log("Watcher continued operating after malformed JSON error")
@@ -92,7 +92,7 @@ func TestConfigErrorInvalidCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(200 * time.Millisecond)
@@ -140,8 +140,8 @@ func TestConfigErrorInvalidCredentials(t *testing.T) {
 	time.Sleep(600 * time.Millisecond)
 
 	// Clean up
-	os.Remove(invalidPath)
-	os.Remove(anotherPath)
+	cleanupFile(t, invalidPath)
+	cleanupFile(t, anotherPath)
 
 	// If we reach here, invalid credentials didn't prevent registry operation
 	t.Log("Registry continued operating despite invalid provider credentials")
@@ -163,7 +163,7 @@ func TestConfigErrorMissingRequiredFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(200 * time.Millisecond)
@@ -192,7 +192,7 @@ func TestConfigErrorMissingRequiredFields(t *testing.T) {
 	}
 
 	// Clean up
-	os.Remove(missingFieldPath)
+	cleanupFile(t, missingFieldPath)
 
 	// If we reach here, validation prevented invalid provider registration
 	t.Log("Config validation correctly rejected provider with missing required fields")
@@ -214,7 +214,7 @@ func TestConfigErrorInvalidType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(200 * time.Millisecond)
@@ -261,8 +261,8 @@ func TestConfigErrorInvalidType(t *testing.T) {
 	time.Sleep(600 * time.Millisecond)
 
 	// Clean up
-	os.Remove(invalidTypePath)
-	os.Remove(validPath)
+	cleanupFile(t, invalidTypePath)
+	cleanupFile(t, validPath)
 
 	// If we reach here, invalid type didn't crash the watcher
 	t.Log("Watcher handled unsupported provider type gracefully")
@@ -284,7 +284,7 @@ func TestConfigErrorConcurrentModificationDuringRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(200 * time.Millisecond)
@@ -306,7 +306,9 @@ func TestConfigErrorConcurrentModificationDuringRead(t *testing.T) {
 					"default_chat_id": "12345` + string(rune('0'+iteration%10)) + `"
 				}
 			}`
-			os.WriteFile(configPath, []byte(content), 0644)
+			if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+				panic(err)
+			}
 			time.Sleep(20 * time.Millisecond)
 		}(i)
 	}
@@ -315,7 +317,7 @@ func TestConfigErrorConcurrentModificationDuringRead(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Clean up
-	os.Remove(configPath)
+	cleanupFile(t, configPath)
 
 	// If we reach here, concurrent modifications didn't crash the system
 	t.Log("Watcher handled concurrent file modifications gracefully")
@@ -337,7 +339,7 @@ func TestConfigErrorEmptyFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(200 * time.Millisecond)
@@ -359,8 +361,8 @@ func TestConfigErrorEmptyFile(t *testing.T) {
 	time.Sleep(600 * time.Millisecond)
 
 	// Clean up
-	os.Remove(emptyPath)
-	os.Remove(whitespacePath)
+	cleanupFile(t, emptyPath)
+	cleanupFile(t, whitespacePath)
 
 	// If we reach here, empty files were handled gracefully
 	t.Log("Watcher handled empty and whitespace-only files gracefully")
@@ -387,7 +389,7 @@ func TestConfigErrorPermissionDenied(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(200 * time.Millisecond)
@@ -411,9 +413,30 @@ func TestConfigErrorPermissionDenied(t *testing.T) {
 	time.Sleep(600 * time.Millisecond)
 
 	// Restore permissions for cleanup
-	os.Chmod(noReadPath, 0644)
-	os.Remove(noReadPath)
+	restorePermissions(t, noReadPath, 0644)
+	cleanupFile(t, noReadPath)
 
 	// If we reach here, permission errors were handled
 	t.Log("Watcher handled permission errors gracefully")
+}
+
+func stopWatcher(t *testing.T, watcher *config.Watcher) {
+	t.Helper()
+	if err := watcher.Stop(); err != nil {
+		t.Fatalf("Failed to stop watcher: %v", err)
+	}
+}
+
+func cleanupFile(t *testing.T, path string) {
+	t.Helper()
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		t.Fatalf("Failed to remove %s: %v", path, err)
+	}
+}
+
+func restorePermissions(t *testing.T, path string, mode os.FileMode) {
+	t.Helper()
+	if err := os.Chmod(path, mode); err != nil {
+		t.Fatalf("Failed to change permissions for %s: %v", path, err)
+	}
 }

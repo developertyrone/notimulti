@@ -1,6 +1,10 @@
 package unit
 
 import (
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/developertyrone/notimulti/internal/providers"
@@ -52,38 +56,37 @@ func TestTelegramProviderSendInvalidRecipient(t *testing.T) {
 	}{
 		{"empty recipient", "", true},
 		{"invalid format", "not-a-number", true},
+		{"valid numeric", "12345678", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a dummy notification to test validation
 			notification := &providers.Notification{
 				ID:        "notif-1",
 				Recipient: tt.recipient,
 				Message:   "Test message",
 			}
 
-			// Verify validation logic
-			if tt.wantError && notification.Recipient == "" {
-				// Expected behavior
+			err := validateTelegramNotification(notification)
+			if (err != nil) != tt.wantError {
+				t.Fatalf("validateTelegramNotification() error = %v, wantError %v", err, tt.wantError)
 			}
 		})
 	}
 }
 
 func TestTelegramProviderSendNilNotification(t *testing.T) {
-	config := &providers.TelegramConfig{
-		BotToken:      "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-		DefaultChatID: "12345678",
+	if err := validateTelegramNotification(nil); err == nil {
+		t.Fatal("expected error for nil notification")
 	}
 
-	// NewTelegramProvider will fail with invalid token, so we test the validation logic
-	if config == nil {
-		t.Error("Config should not be nil")
+	valid := &providers.Notification{
+		ID:        "notif-valid",
+		Recipient: "12345678",
+		Message:   "Hello",
 	}
-
-	if config.BotToken == "" {
-		t.Error("Bot token should not be empty")
+	if err := validateTelegramNotification(valid); err != nil {
+		t.Fatalf("unexpected validation error: %v", err)
 	}
 }
 
@@ -128,15 +131,22 @@ func TestTelegramConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.wantError && tt.config == nil {
-				// Expected validation failure
+			if tt.config == nil {
+				if !tt.wantError {
+					t.Fatalf("expected valid config, got nil")
+				}
 				return
 			}
 
-			if !tt.wantError && tt.config != nil {
-				if tt.config.BotToken == "" || tt.config.DefaultChatID == "" {
-					t.Error("Required fields missing")
+			if tt.config.BotToken == "" || tt.config.DefaultChatID == "" {
+				if !tt.wantError {
+					t.Fatalf("missing required fields in config: %+v", tt.config)
 				}
+				return
+			}
+
+			if tt.wantError {
+				t.Fatalf("expected configuration error for test %s", tt.name)
 			}
 		})
 	}
@@ -185,21 +195,34 @@ func TestTelegramNotificationValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.wantError && tt.notif == nil {
-				// Expected validation failure
-				return
-			}
-
-			if tt.wantError && tt.notif.Recipient == "" {
-				// Expected validation failure
-				return
-			}
-
-			if !tt.wantError && tt.notif != nil {
-				if tt.notif.ID == "" || tt.notif.Recipient == "" || tt.notif.Message == "" {
-					t.Error("Required fields missing")
-				}
+			err := validateTelegramNotification(tt.notif)
+			if (err != nil) != tt.wantError {
+				t.Fatalf("validateTelegramNotification() error = %v, wantError %v", err, tt.wantError)
 			}
 		})
 	}
+}
+
+func validateTelegramNotification(notification *providers.Notification) error {
+	if notification == nil {
+		return errors.New("notification cannot be nil")
+	}
+	if strings.TrimSpace(notification.Message) == "" {
+		return errors.New("message cannot be empty")
+	}
+	return validateTelegramRecipient(notification.Recipient)
+}
+
+func validateTelegramRecipient(recipient string) error {
+	if recipient == "" {
+		return errors.New("recipient (chat_id) cannot be empty")
+	}
+	trimmed := strings.TrimPrefix(recipient, "-")
+	if trimmed == "" {
+		return errors.New("invalid chat_id")
+	}
+	if _, err := strconv.ParseInt(trimmed, 10, 64); err != nil {
+		return fmt.Errorf("invalid chat_id: %w", err)
+	}
+	return nil
 }

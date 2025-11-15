@@ -69,7 +69,9 @@ func NewWatcher(configDir string, registry *providers.Registry, logger *slog.Log
 	// Add config directory to watch list
 	if err := fsWatcher.Add(configDir); err != nil {
 		cancel()
-		fsWatcher.Close()
+		if closeErr := fsWatcher.Close(); closeErr != nil {
+			logger.Warn("Failed to close fsnotify watcher after error", "error", closeErr)
+		}
 		return nil, fmt.Errorf("failed to watch directory %s: %w", configDir, err)
 	}
 
@@ -277,7 +279,11 @@ func (w *Watcher) handleCreate(config *ProviderConfig) {
 		w.logger.Error("Failed to register provider",
 			"id", config.ID,
 			"error", err)
-		provider.Close()
+		if closeErr := provider.Close(); closeErr != nil {
+			w.logger.Error("Failed to close provider after registration failure",
+				"id", config.ID,
+				"error", closeErr)
+		}
 		return
 	}
 
@@ -358,7 +364,11 @@ func (w *Watcher) handleWrite(config *ProviderConfig) {
 		w.logger.Error("Failed to replace provider",
 			"id", config.ID,
 			"error", err)
-		newProvider.Close()
+		if closeErr := newProvider.Close(); closeErr != nil {
+			w.logger.Error("Failed to close provider after replace failure",
+				"id", config.ID,
+				"error", closeErr)
+		}
 		return
 	}
 

@@ -257,7 +257,11 @@ func TestLoadFile(t *testing.T) {
 			if err := os.WriteFile(filename, []byte(tt.content), 0644); err != nil {
 				t.Fatal(err)
 			}
-			defer os.Remove(filename)
+			t.Cleanup(func() {
+				if err := os.Remove(filename); err != nil && !os.IsNotExist(err) {
+					t.Fatalf("failed to remove file %s: %v", filename, err)
+				}
+			})
 
 			config, err := loader.LoadFile(filename)
 
@@ -347,5 +351,52 @@ func TestValidateConfigs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestValidateConfigTelegramNumericChatID(t *testing.T) {
+	cfg := &config.ProviderConfig{
+		ID:      "telegram-numeric",
+		Type:    "telegram",
+		Enabled: true,
+		Config: map[string]interface{}{
+			"bot_token":       "123:ABC",
+			"default_chat_id": float64(987654),
+		},
+	}
+
+	if err := config.ValidateConfig(cfg); err != nil {
+		t.Fatalf("ValidateConfig failed for numeric chat id: %v", err)
+	}
+}
+
+func TestValidateConfigEmailStringPort(t *testing.T) {
+	cfg := &config.ProviderConfig{
+		ID:      "email-string-port",
+		Type:    "email",
+		Enabled: true,
+		Config: map[string]interface{}{
+			"host":     "smtp.example.com",
+			"port":     "587",
+			"username": "user@example.com",
+			"password": "secret",
+			"from":     "user@example.com",
+		},
+	}
+
+	if err := config.ValidateConfig(cfg); err != nil {
+		t.Fatalf("ValidateConfig failed for string port: %v", err)
+	}
+}
+
+func TestGetConfigPath(t *testing.T) {
+	baseDir := filepath.Join(os.TempDir(), "configs")
+	loader := config.NewLoader(baseDir)
+
+	got := loader.GetConfigPath("email.json")
+	want := filepath.Join(baseDir, "email.json")
+
+	if got != want {
+		t.Fatalf("expected %s, got %s", want, got)
 	}
 }

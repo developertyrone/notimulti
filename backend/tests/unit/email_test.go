@@ -257,11 +257,11 @@ func TestEmailProviderGetStatus(t *testing.T) {
 
 	status := provider.GetStatus()
 	if status == nil {
-		t.Errorf("GetStatus() returned nil")
+		t.Fatalf("GetStatus() returned nil")
 	}
 	// Status will show error due to connectivity in test environment
 	if status.Status == "" {
-		t.Errorf("GetStatus() returned empty status")
+		t.Fatalf("GetStatus() returned empty status")
 	}
 }
 

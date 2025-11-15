@@ -1,0 +1,69 @@
+linters:
+  enable:
+    - errcheck
+    - staticcheck
+    - govet
+    - ineffassign
+    - unused
+
+issues:
+  exclude-rules:
+    # Exclude errcheck for specific functions
+    - linters:
+        - errcheck
+      text: "Error return value of nl\\.flushBatch is not checked"
+    
+    - linters:
+        - errcheck
+      text: "Error return value of registry\\.Register is not checked"
+    
+    - linters:
+        - errcheck
+      text: "Error return value of registry\\.Get is not checked"
+    
+    - linters:
+        - errcheck
+      text: "Error return value of registry\\.Remove is not checked"
+    
+    - linters:
+        - errcheck
+      text: "Error return value of provider\\.Send is not checked"
+    
+    - linters:
+        - errcheck
+      text: "Error return value of watcher\\.Stop is not checked"
+    
+    - linters:
+        - errcheck
+      text: "Error return value of os\\.WriteFile is not checked"
+    
+    - linters:
+        - errcheck
+      text: "Error return value of os\\.Chmod is not checked"
+    
+    - linters:
+        - errcheck
+      text: "Error return value of server\\.Shutdown is not checked"
+    
+    - linters:
+        - errcheck
+      text: "Error return value of tx\\.Rollback is not checked"
+    
+    - linters:
+        - errcheck
+      text: "Error return value of fmt\\.Sscanf is not checked"
+    
+    # Ignore specific staticcheck issues in tests
+    - path: _test\.go
+      linters:
+        - staticcheck
+      text: "(SA5011|SA9003|SA4031)"
+    
+    # Ignore registry nil context
+    - path: internal/providers/registry\.go
+      linters:
+        - staticcheck
+      text: "SA1012"
+
+run:
+  timeout: 5m

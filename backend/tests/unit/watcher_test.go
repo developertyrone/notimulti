@@ -41,7 +41,7 @@ func TestWatcherDebouncing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopUnitWatcher(t, watcher)
 
 	// Start watcher
 	watcher.Start()
@@ -127,7 +127,7 @@ func TestWatcherMalformedConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopUnitWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(100 * time.Millisecond)
@@ -184,7 +184,7 @@ func TestWatcherEventHandling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopUnitWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(100 * time.Millisecond)
@@ -230,6 +230,16 @@ func TestWatcherEventHandling(t *testing.T) {
 	t.Log("Event handling test completed - watcher processed CREATE/WRITE/REMOVE events")
 }
 
+func stopUnitWatcher(t *testing.T, watcher *config.Watcher) {
+	t.Helper()
+	if watcher == nil {
+		return
+	}
+	if err := watcher.Stop(); err != nil {
+		t.Fatalf("Failed to stop watcher: %v", err)
+	}
+}
+
 // TestWatcherIgnoresNonJSONFiles tests that non-JSON files are ignored
 func TestWatcherIgnoresNonJSONFiles(t *testing.T) {
 	testDir := t.TempDir()
@@ -241,7 +251,7 @@ func TestWatcherIgnoresNonJSONFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create watcher: %v", err)
 	}
-	defer watcher.Stop()
+	defer stopUnitWatcher(t, watcher)
 
 	watcher.Start()
 	time.Sleep(100 * time.Millisecond)
@@ -263,5 +273,54 @@ func TestWatcherIgnoresNonJSONFiles(t *testing.T) {
 	providers := registry.List()
 	if len(providers) != 0 {
 		t.Errorf("Expected no providers, got %d", len(providers))
+	}
+}
+
+func TestWatcherCreatesEmailProvider(t *testing.T) {
+	testDir := t.TempDir()
+
+	registry := providers.NewRegistry()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+	registry.SetLogger(logger)
+
+	watcher, err := config.NewWatcher(testDir, registry, logger)
+	if err != nil {
+		t.Fatalf("Failed to create watcher: %v", err)
+	}
+	defer stopUnitWatcher(t, watcher)
+
+	watcher.Start()
+	time.Sleep(100 * time.Millisecond)
+
+	emailConfig := `{
+		"id": "email-provider",
+		"type": "email",
+		"enabled": true,
+		"config": {
+			"host": "smtp.example.com",
+			"port": 2525,
+			"username": "alerts@example.com",
+			"password": "sup3r-secret",
+			"from": "alerts@example.com",
+			"smtp_host": "smtp.example.com",
+			"smtp_port": 2525,
+			"from_address": "alerts@example.com",
+			"use_tls": true
+		}
+	}`
+
+	configPath := filepath.Join(testDir, "email-provider.json")
+	if err := os.WriteFile(configPath, []byte(emailConfig), 0644); err != nil {
+		t.Fatalf("Failed to write email config: %v", err)
+	}
+
+	time.Sleep(500 * time.Millisecond)
+
+	provider, err := registry.Get("email-provider")
+	if err != nil {
+		t.Fatalf("Expected email provider to be registered: %v", err)
+	}
+	if provider.GetType() != "email" {
+		t.Fatalf("Expected provider type email, got %s", provider.GetType())
 	}
 }

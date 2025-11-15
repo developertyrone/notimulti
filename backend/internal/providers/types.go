@@ -24,12 +24,12 @@ type ProviderConfig struct {
 
 // ProviderStatus represents the current status of a provider
 type ProviderStatus struct {
-	Status         string    `json:"status"` // "active", "inactive", "error", "disabled"
-	LastUpdated    time.Time `json:"last_updated"`
-	ErrorMessage   string    `json:"error_message,omitempty"`
-	ConfigChecksum string    `json:"config_checksum,omitempty"`
-	LastTestAt     *time.Time `json:"last_test_at,omitempty"`       // T049: When provider was last tested
-	LastTestStatus string    `json:"last_test_status,omitempty"`    // T049: "success" or "failed"
+	Status         string     `json:"status"` // "active", "inactive", "error", "disabled"
+	LastUpdated    time.Time  `json:"last_updated"`
+	ErrorMessage   string     `json:"error_message,omitempty"`
+	ConfigChecksum string     `json:"config_checksum,omitempty"`
+	LastTestAt     *time.Time `json:"last_test_at,omitempty"`     // T049: When provider was last tested
+	LastTestStatus string     `json:"last_test_status,omitempty"` // T049: "success" or "failed"
 }
 
 // Priority constants for notifications
@@ -53,6 +53,7 @@ type TelegramConfig struct {
 	DefaultChatID  string `json:"default_chat_id"`
 	ParseMode      string `json:"parse_mode,omitempty"` // HTML or Markdown
 	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+	APIEndpoint    string `json:"api_endpoint,omitempty"`
 }
 
 // EmailConfig contains Email-specific configuration

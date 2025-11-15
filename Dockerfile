@@ -1,17 +1,19 @@
+# syntax=docker/dockerfile:1.7
+
 # Stage 1: Frontend build
-FROM node:18-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 # Copy package files and install dependencies
 COPY frontend/package*.json ./
-RUN npm ci --only=production
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # Copy frontend source and build
 COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Backend build with embedded frontend
-FROM golang:1.21-alpine AS backend-builder
+FROM golang:1.23-alpine AS backend-builder
 WORKDIR /app
 
 # Install build dependencies (CGO required for SQLite)
@@ -19,17 +21,19 @@ RUN apk add --no-cache gcc musl-dev
 
 # Copy go mod files and download dependencies
 COPY backend/go.mod backend/go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 # Copy backend source
 COPY backend/ ./
 
-# Copy built frontend from previous stage
-COPY --from=frontend-builder /app/frontend/dist ./cmd/server/dist
+# Copy built frontend from previous stage (Vite outputs to ../backend/cmd/server/dist)
+COPY --from=frontend-builder /app/backend/cmd/server/dist ./cmd/server/dist
 
 # Build backend with optimizations (T072)
 # -ldflags="-s -w" strips debug info and symbol table (reduces size ~30%)
-RUN CGO_ENABLED=1 GOOS=linux go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=1 GOOS=linux go build \
     -ldflags="-s -w" \
     -o server \
     ./cmd/server

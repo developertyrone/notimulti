@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -60,18 +61,24 @@ func (nl *NotificationLogger) worker() {
 			if !ok {
 				// Channel closed, flush remaining and exit
 				if len(batch) > 0 {
-					nl.flushBatch(batch)
+					if err := nl.flushBatch(batch); err != nil {
+						log.Printf("ERROR: Failed to flush notification logs on shutdown: %v", err)
+					}
 				}
 				return
 			}
 			batch = append(batch, entry)
 			if len(batch) >= 100 {
-				nl.flushBatch(batch)
+				if err := nl.flushBatch(batch); err != nil {
+					log.Printf("ERROR: Failed to flush notification logs: %v", err)
+				}
 				batch = batch[:0]
 			}
 		case <-nl.flushTicker.C:
 			if len(batch) > 0 {
-				nl.flushBatch(batch)
+				if err := nl.flushBatch(batch); err != nil {
+					log.Printf("ERROR: Failed to flush notification logs: %v", err)
+				}
 				batch = batch[:0]
 			}
 		}
@@ -90,7 +97,11 @@ func (nl *NotificationLogger) flushBatch(batch []LogEntry) error {
 		log.Printf("ERROR: Failed to start transaction for notification logs: %v", err)
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if rollErr := tx.Rollback(); rollErr != nil && !errors.Is(rollErr, sql.ErrTxDone) {
+			log.Printf("ERROR: Failed to rollback notification log transaction: %v", rollErr)
+		}
+	}()
 
 	// Prepare statement within transaction
 	stmt, err := tx.Prepare(`
@@ -103,7 +114,11 @@ func (nl *NotificationLogger) flushBatch(batch []LogEntry) error {
 		log.Printf("ERROR: Failed to prepare statement: %v", err)
 		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
-	defer stmt.Close()
+	defer func() {
+		if closeErr := stmt.Close(); closeErr != nil {
+			log.Printf("ERROR: Failed to close notification log statement: %v", closeErr)
+		}
+	}()
 
 	// Insert all entries in batch
 	for _, entry := range batch {
@@ -220,4 +235,3 @@ func (nl *NotificationLogger) Close() error {
 		return fmt.Errorf("timeout waiting for logger to close")
 	}
 }
-

@@ -42,8 +42,8 @@ func TestGetProvidersContract(t *testing.T) {
 		CloseFunc: func() error { return nil },
 	}
 
-	registry.Register(mockProvider1)
-	registry.Register(mockProvider2)
+	mustRegisterProvider(registry, mockProvider1)
+	mustRegisterProvider(registry, mockProvider2)
 
 	// Create router
 	router := gin.New()
@@ -143,7 +143,7 @@ func TestGetProviderByIDContract(t *testing.T) {
 		CloseFunc: func() error { return nil },
 	}
 
-	registry.Register(mockProvider)
+	mustRegisterProvider(registry, mockProvider)
 
 	// Create router
 	router := gin.New()
@@ -225,7 +225,7 @@ func TestGetProviderWithErrorStatus(t *testing.T) {
 		CloseFunc: func() error { return nil },
 	}
 
-	registry.Register(mockProvider)
+	mustRegisterProvider(registry, mockProvider)
 
 	// Create router
 	router := gin.New()

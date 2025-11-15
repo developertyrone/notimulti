@@ -29,11 +29,19 @@ func TestGetLogLevel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.envValue != "" {
-				os.Setenv("LOG_LEVEL", tt.envValue)
+				if err := os.Setenv("LOG_LEVEL", tt.envValue); err != nil {
+					t.Fatalf("Failed to set LOG_LEVEL: %v", err)
+				}
 			} else {
-				os.Unsetenv("LOG_LEVEL")
+				if err := os.Unsetenv("LOG_LEVEL"); err != nil {
+					t.Fatalf("Failed to unset LOG_LEVEL: %v", err)
+				}
 			}
-			defer os.Unsetenv("LOG_LEVEL")
+			defer func() {
+				if err := os.Unsetenv("LOG_LEVEL"); err != nil {
+					t.Fatalf("Failed to unset LOG_LEVEL: %v", err)
+				}
+			}()
 
 			// Test indirectly through InitLogger
 			logger := logging.InitLogger()
@@ -57,8 +65,14 @@ func TestGetLogFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("LOG_FORMAT", tt.envValue)
-			defer os.Unsetenv("LOG_FORMAT")
+			if err := os.Setenv("LOG_FORMAT", tt.envValue); err != nil {
+				t.Fatalf("Failed to set LOG_FORMAT: %v", err)
+			}
+			defer func() {
+				if err := os.Unsetenv("LOG_FORMAT"); err != nil {
+					t.Fatalf("Failed to unset LOG_FORMAT: %v", err)
+				}
+			}()
 
 			// Test indirectly through InitLogger
 			logger := logging.InitLogger()
@@ -131,10 +145,22 @@ func TestLogWithContext(t *testing.T) {
 }
 
 func TestInitLogger_JSONFormat(t *testing.T) {
-	os.Setenv("LOG_FORMAT", "json")
-	os.Setenv("LOG_LEVEL", "DEBUG")
-	defer os.Unsetenv("LOG_FORMAT")
-	defer os.Unsetenv("LOG_LEVEL")
+	if err := os.Setenv("LOG_FORMAT", "json"); err != nil {
+		t.Fatalf("Failed to set LOG_FORMAT: %v", err)
+	}
+	if err := os.Setenv("LOG_LEVEL", "DEBUG"); err != nil {
+		t.Fatalf("Failed to set LOG_LEVEL: %v", err)
+	}
+	defer func() {
+		if err := os.Unsetenv("LOG_FORMAT"); err != nil {
+			t.Fatalf("Failed to unset LOG_FORMAT: %v", err)
+		}
+	}()
+	defer func() {
+		if err := os.Unsetenv("LOG_LEVEL"); err != nil {
+			t.Fatalf("Failed to unset LOG_LEVEL: %v", err)
+		}
+	}()
 
 	logger := logging.InitLogger()
 	if logger == nil {
@@ -143,10 +169,22 @@ func TestInitLogger_JSONFormat(t *testing.T) {
 }
 
 func TestInitLogger_TextFormat(t *testing.T) {
-	os.Setenv("LOG_FORMAT", "text")
-	os.Setenv("LOG_LEVEL", "INFO")
-	defer os.Unsetenv("LOG_FORMAT")
-	defer os.Unsetenv("LOG_LEVEL")
+	if err := os.Setenv("LOG_FORMAT", "text"); err != nil {
+		t.Fatalf("Failed to set LOG_FORMAT: %v", err)
+	}
+	if err := os.Setenv("LOG_LEVEL", "INFO"); err != nil {
+		t.Fatalf("Failed to set LOG_LEVEL: %v", err)
+	}
+	defer func() {
+		if err := os.Unsetenv("LOG_FORMAT"); err != nil {
+			t.Fatalf("Failed to unset LOG_FORMAT: %v", err)
+		}
+	}()
+	defer func() {
+		if err := os.Unsetenv("LOG_LEVEL"); err != nil {
+			t.Fatalf("Failed to unset LOG_LEVEL: %v", err)
+		}
+	}()
 
 	logger := logging.InitLogger()
 	if logger == nil {
