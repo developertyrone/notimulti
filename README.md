@@ -413,7 +413,18 @@ docker pull developertyrone/notimulti:latest
 docker pull developertyrone/notimulti:1.0.0
 ```
 
-**Release a New Version:**
+### 🔢 Automated Versioning & Releases
+
+- Every merge to `main` automatically bumps the patch version and pushes a new `vX.Y.Z` tag via the **Auto Semantic Versioning** workflow. The Docker workflow already reacts to those tags, so fresh images are built without manual tagging.
+- Need to cut a minor or major release? Dispatch the workflow with the desired bump level (requires the [GitHub CLI](https://cli.github.com/) and repo access):
+
+```bash
+gh workflow run "Auto Semantic Versioning" -f bump=minor
+# or
+gh workflow run "Auto Semantic Versioning" -f bump=major
+```
+
+**Legacy manual tagging (still supported):**
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
