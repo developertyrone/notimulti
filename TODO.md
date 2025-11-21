@@ -27,8 +27,8 @@ ci build for docker repository (keep secret in github repo)
 k8s + docker compose deployment
 
 
-
 --- FEATURE3 ---
 release notes and tags for each release in github, like proper software
-
+tag image with version and integrate with github action
+testing and run in docker
 
