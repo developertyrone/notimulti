@@ -415,7 +415,7 @@ docker pull developertyrone/notimulti:1.0.0
 
 ### 🔢 Automated Versioning & Releases
 
-- Every merge to `main` automatically bumps the patch version and pushes a new `vX.Y.Z` tag via the **Auto Semantic Versioning** workflow. The Docker workflow already reacts to those tags, so fresh images are built without manual tagging.
+- Every merge to `main` automatically bumps the patch version and pushes a new `vX.Y.Z` tag via the **Auto Semantic Versioning** workflow. The Docker pipeline now stalls briefly (up to ~5 minutes) while it waits for that tag to land on the commit, then stamps the Docker image with `1.2.3`, `1.2`, `1`, and `latest` in the same run—no extra triggers required.
 - Need to cut a minor or major release? Dispatch the workflow with the desired bump level (requires the [GitHub CLI](https://cli.github.com/) and repo access):
 
 ```bash
