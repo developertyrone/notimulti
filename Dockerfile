@@ -44,13 +44,10 @@ FROM alpine:3.18
 # Install runtime dependencies (T072)
 # ca-certificates: Required for HTTPS connections (Telegram API, SMTP TLS)
 # tzdata: Required for correct timestamp handling across timezones
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata su-exec
 
 # Create non-root user (T073, FR-025)
 RUN adduser -D -u 1000 notimulti
-
-# Switch to non-root user
-USER notimulti
 
 # Set working directory
 WORKDIR /app
@@ -60,6 +57,10 @@ COPY --from=backend-builder --chown=notimulti:notimulti /app/server .
 
 # Create directories for runtime data with correct permissions
 RUN mkdir -p /app/data /app/configs
+
+# Copy entrypoint script and allow execution
+COPY deploy/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Expose application port
 EXPOSE 8080
@@ -75,5 +76,5 @@ ENV PORT=8080 \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/v1/health || exit 1
 
-# Run server
-CMD ["./server"]
+# Use entrypoint to prepare bind mounts then drop privileges
+ENTRYPOINT ["/entrypoint.sh"]

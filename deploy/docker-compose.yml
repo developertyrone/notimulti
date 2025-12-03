@@ -2,10 +2,7 @@ version: '3.8'
 
 services:
   notimulti:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-    image: notimulti:latest
+    image: developertyrone/notimulti:1.0.2
     container_name: notimulti-server
     
     ports:

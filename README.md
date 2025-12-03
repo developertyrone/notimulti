@@ -31,8 +31,11 @@ cat > configs/telegram-example.json <<EOF
 }
 EOF
 
-# Start with Docker Compose
+# Start with Docker Compose (pulls prebuilt image)
 docker-compose -f deploy/docker-compose.yml up -d
+
+# Build locally (uses current source/Dockerfile)
+docker-compose -f deploy/docker-compose.local.yml up -d --build
 
 # Access the web UI
 open http://localhost:8080
@@ -363,6 +366,7 @@ docker-compose -f deploy/docker-compose.yml up -d
 - ✅ Health checks for liveness/readiness
 - ✅ Volume mounting for configs and database
 - ✅ Automatic restart on failure
+- ✅ Entry-point auto-fixes bind-mount permissions before dropping to the non-root user, so you rarely need manual `chown`
 
 📖 **Full Guide:** [QUICKSTART.md](QUICKSTART.md)
 
