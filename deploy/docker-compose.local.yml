@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  notimulti:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: notimulti:local
+    container_name: notimulti-server-local
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      - PORT=8080
+      - LOG_LEVEL=debug
+      - CONFIG_DIR=/app/configs
+      - DB_PATH=/app/data/notifications.db
+      - LOG_RETENTION_DAYS=7
+
+    volumes:
+      - ../backend/configs:/app/configs:ro
+      - ./local-data:/app/data
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
