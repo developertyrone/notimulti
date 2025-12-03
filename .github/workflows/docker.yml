@@ -112,6 +112,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       
       # T093: Setup QEMU for multi-arch builds
       - name: Set up QEMU
@@ -129,6 +131,54 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Detect semantic version tag
+        id: release_tag
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          # If the workflow was triggered by a tag push, use it immediately
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG=${GITHUB_REF#refs/tags/}
+            VERSION=${TAG#v}
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            echo "has_tag=true" >> "$GITHUB_OUTPUT"
+            echo "full=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "major_minor=$MAJOR.$MINOR" >> "$GITHUB_OUTPUT"
+            echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
+            echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Only wait for tags on pushes to the default branch (Auto Semantic Versioning)
+          if [[ "${GITHUB_EVENT_NAME}" != "push" || "${GITHUB_REF}" != "refs/heads/${DEFAULT_BRANCH}" ]]; then
+            echo "has_tag=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          for attempt in {1..30}; do
+            git fetch --tags --force
+            TAG=$(git tag --points-at HEAD --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
+            if [[ -n "$TAG" ]]; then
+              VERSION=${TAG#v}
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+              echo "has_tag=true" >> "$GITHUB_OUTPUT"
+              echo "full=$VERSION" >> "$GITHUB_OUTPUT"
+              echo "major_minor=$MAJOR.$MINOR" >> "$GITHUB_OUTPUT"
+              echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
+              echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Waiting for semantic tag from Auto Semantic Versioning (attempt $attempt/30)..."
+            sleep 10
+          done
+
+          echo "::warning::Timed out waiting for a semantic tag on ${GITHUB_SHA}; continuing without release tags."
+          echo "has_tag=false" >> "$GITHUB_OUTPUT"
+
       # T096: Docker metadata for tagging
       - name: Extract Docker metadata
         id: meta
@@ -136,10 +186,10 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            # Tag with version for tags (v1.2.3 → 1.2.3, 1.2, 1, latest)
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            # Tag with version for tags (v1.2.3 → 1.2.3, 1.2, 1)
+            ${{ steps.release_tag.outputs.has_tag == 'true' && format('type=raw,value={0}', steps.release_tag.outputs.full) || '' }}
+            ${{ steps.release_tag.outputs.has_tag == 'true' && format('type=raw,value={0}', steps.release_tag.outputs.major_minor) || '' }}
+            ${{ steps.release_tag.outputs.has_tag == 'true' && format('type=raw,value={0}', steps.release_tag.outputs.major) || '' }}
             # Tag with 'latest' for main branch
             type=raw,value=latest,enable={{is_default_branch}}
             # Tag with PR number for pull requests
@@ -176,7 +226,6 @@ jobs:
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           # T095: Layer caching
           cache-from: type=gha
