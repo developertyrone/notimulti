@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  notimulti:
+    image: developertyrone/notimulti:1.0.2
+    container_name: notimulti-server
+    
+    ports:
+      - "18080:8080"
+    
+    environment:
+      - PORT=8080
+      - LOG_LEVEL=info
+      - CONFIG_DIR=/app/configs
+      - DB_PATH=/app/data/notifications.db
+      - LOG_RETENTION_DAYS=90
+    
+    volumes:
+      # Mount local configs directory (read-only)
+      - ./configs:/app/configs:ro
+      # Mount local data directory for database persistence
+      - ./data:/app/data
+    
+    restart: unless-stopped
+    
+    # T075: Health check configuration
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Optional: Resource limits for production deployment
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1.0'
+    #       memory: 512M
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 256M
