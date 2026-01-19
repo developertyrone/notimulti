@@ -26,8 +26,8 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 # Copy backend source
 COPY backend/ ./
 
-# Copy built frontend from previous stage (Vite outputs to ../backend/cmd/server/dist)
-COPY --from=frontend-builder /app/backend/cmd/server/dist ./cmd/server/dist
+# Copy built frontend from previous stage (Vite outputs to /app/frontend/dist)
+COPY --from=frontend-builder /app/frontend/dist ./cmd/server/dist
 
 # Build backend with optimizations (T072)
 # -ldflags="-s -w" strips debug info and symbol table (reduces size ~30%)
@@ -52,8 +52,9 @@ RUN adduser -D -u 1000 notimulti
 # Set working directory
 WORKDIR /app
 
-# Copy binary from builder stage
+# Copy binary and static assets from builder stage
 COPY --from=backend-builder --chown=notimulti:notimulti /app/server .
+COPY --from=backend-builder --chown=notimulti:notimulti /app/cmd/server/dist ./cmd/server/dist
 
 # Create directories for runtime data with correct permissions
 RUN mkdir -p /app/data /app/configs

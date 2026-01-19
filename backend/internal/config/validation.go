@@ -110,20 +110,28 @@ func validateTelegramConfig(config map[string]interface{}) error {
 }
 
 func validateEmailConfig(config map[string]interface{}) error {
-	// Validate host
-	host, ok := config["host"].(string)
-	if !ok || host == "" {
-		return &ValidationError{Field: "host", Message: "host is required"}
+	// Host can be provided as host or smtp_host
+	host := ""
+	if h, ok := config["host"].(string); ok && h != "" {
+		host = h
+	} else if h, ok := config["smtp_host"].(string); ok && h != "" {
+		host = h
+	}
+	if host == "" {
+		return &ValidationError{Field: "host", Message: "host/smtp_host is required"}
 	}
 
-	// Validate port
-	port, ok := config["port"]
-	if !ok {
-		return &ValidationError{Field: "port", Message: "port is required"}
+	// Port can be provided as port or smtp_port
+	portVal, hasPort := config["port"]
+	if !hasPort {
+		portVal, hasPort = config["smtp_port"]
+	}
+	if !hasPort {
+		return &ValidationError{Field: "port", Message: "port/smtp_port is required"}
 	}
 
 	// Check if port is a valid number
-	switch v := port.(type) {
+	switch v := portVal.(type) {
 	case float64:
 		if v <= 0 || v > 65535 {
 			return &ValidationError{Field: "port", Message: "port must be between 1 and 65535"}
@@ -149,10 +157,15 @@ func validateEmailConfig(config map[string]interface{}) error {
 		return &ValidationError{Field: "password", Message: "password is required"}
 	}
 
-	// Validate from address
-	from, ok := config["from"].(string)
-	if !ok || from == "" {
-		return &ValidationError{Field: "from", Message: "from address is required"}
+	// from/from_address
+	from := ""
+	if f, ok := config["from"].(string); ok && f != "" {
+		from = f
+	} else if f, ok := config["from_address"].(string); ok && f != "" {
+		from = f
+	}
+	if from == "" {
+		return &ValidationError{Field: "from", Message: "from/from_address is required"}
 	}
 
 	// Validate email format

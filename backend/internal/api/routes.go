@@ -4,6 +4,9 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/developertyrone/notimulti/internal/providers"
 	"github.com/developertyrone/notimulti/internal/storage"
@@ -80,6 +83,29 @@ func ServeFrontend(router *gin.Engine, frontendFS embed.FS) {
 		}()
 
 		c.DataFromReader(http.StatusOK, -1, "text/html", data, nil)
+	})
+}
+
+// ServeFrontendFromDisk serves frontend files from a directory on disk (Docker runtime path).
+// This is used when the dist assets are copied into the image instead of embedded.
+func ServeFrontendFromDisk(router *gin.Engine, distPath string) {
+	// Ensure the directory exists; if not, skip registration
+	info, err := os.Stat(distPath)
+	if err != nil || !info.IsDir() {
+		return
+	}
+
+	// Serve static assets (Vite outputs /assets/*)
+	router.StaticFS("/assets", gin.Dir(filepath.Join(distPath, "assets"), false))
+
+	// SPA fallback for all non-API routes
+	router.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+			return
+		}
+
+		c.File(filepath.Join(distPath, "index.html"))
 	})
 }
 

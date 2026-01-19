@@ -421,16 +421,21 @@ func parseTelegramConfig(config map[string]interface{}) (*providers.TelegramConf
 func parseEmailConfig(config map[string]interface{}) (*providers.EmailConfig, error) {
 	emailConfig := &providers.EmailConfig{}
 
-	if host, ok := config["smtp_host"].(string); ok {
+	// Accept both legacy keys (host/port/from) and newer smtp_* keys.
+	if host, ok := config["smtp_host"].(string); ok && host != "" {
+		emailConfig.Host = host
+	} else if host, ok := config["host"].(string); ok && host != "" {
 		emailConfig.Host = host
 	} else {
-		return nil, fmt.Errorf("missing or invalid smtp_host")
+		return nil, fmt.Errorf("missing or invalid smtp_host/host")
 	}
 
-	if port, ok := config["smtp_port"].(float64); ok {
+	if port, ok := config["smtp_port"].(float64); ok && port > 0 {
+		emailConfig.Port = int(port)
+	} else if port, ok := config["port"].(float64); ok && port > 0 {
 		emailConfig.Port = int(port)
 	} else {
-		return nil, fmt.Errorf("missing or invalid smtp_port")
+		return nil, fmt.Errorf("missing or invalid smtp_port/port")
 	}
 
 	if username, ok := config["username"].(string); ok {
@@ -441,10 +446,12 @@ func parseEmailConfig(config map[string]interface{}) (*providers.EmailConfig, er
 		emailConfig.Password = password
 	}
 
-	if from, ok := config["from_address"].(string); ok {
+	if from, ok := config["from_address"].(string); ok && from != "" {
+		emailConfig.From = from
+	} else if from, ok := config["from"].(string); ok && from != "" {
 		emailConfig.From = from
 	} else {
-		return nil, fmt.Errorf("missing or invalid from_address")
+		return nil, fmt.Errorf("missing or invalid from_address/from")
 	}
 
 	if useTLS, ok := config["use_tls"].(bool); ok {
