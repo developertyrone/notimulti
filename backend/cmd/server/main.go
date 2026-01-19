@@ -154,8 +154,9 @@ func main() {
 	watcher.Start()
 	logger.Info("Configuration watcher started", "directory", configDir)
 
-	// Setup API router
+	// Setup API router and serve frontend from built assets (copied into /app/cmd/server/dist)
 	router := api.SetupRouter(registry, notifLogger, repo)
+	api.ServeFrontendFromDisk(router, "./cmd/server/dist")
 
 	// Get server port
 	// T070: Use PORT environment variable (standard for containers)
