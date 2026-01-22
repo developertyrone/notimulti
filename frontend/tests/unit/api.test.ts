@@ -9,6 +9,8 @@ describe('API Service', () => {
     vi.resetAllMocks()
   })
 
+  const baseUrl = window.location.origin
+
   describe('fetchProviders', () => {
     it('should fetch providers successfully', async () => {
       const mockData = {
@@ -39,7 +41,7 @@ describe('API Service', () => {
 
       expect(result).toEqual(mockData.providers)
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/v1/providers',
+        `${baseUrl}/api/v1/providers`,
         expect.objectContaining({
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
@@ -93,7 +95,7 @@ describe('API Service', () => {
 
       expect(result).toEqual(mockProvider)
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/v1/providers/test-provider',
+        `${baseUrl}/api/v1/providers/test-provider`,
         expect.objectContaining({
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
