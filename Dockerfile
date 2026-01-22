@@ -21,7 +21,7 @@ RUN apk add --no-cache gcc musl-dev
 
 # Copy go mod files and download dependencies
 COPY backend/go.mod backend/go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
+RUN --mount=type=cache,target=/go/pkg/mod,id=gomodcache go mod download
 
 # Copy backend source
 COPY backend/ ./
@@ -31,8 +31,8 @@ COPY --from=frontend-builder /app/backend/cmd/server/dist ./cmd/server/dist
 
 # Build backend with optimizations (T072)
 # -ldflags="-s -w" strips debug info and symbol table (reduces size ~30%)
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
+RUN --mount=type=cache,target=/go/pkg/mod,id=gomodcache \
+    --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
     CGO_ENABLED=1 GOOS=linux go build \
     -ldflags="-s -w" \
     -o server \
