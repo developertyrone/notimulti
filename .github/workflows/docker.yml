@@ -138,7 +138,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --tags --force
+          retry_fetch_tags() {
+            local attempts=5
+            local delay=3
+            for attempt in $(seq 1 "$attempts"); do
+              if git fetch --tags --force; then
+                return 0
+              fi
+              echo "git fetch --tags failed (attempt $attempt/$attempts). Retrying in ${delay}s..."
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+            return 1
+          }
+
+          if ! retry_fetch_tags; then
+            echo "::warning::Unable to fetch tags from GitHub (transient 5xx). Continuing without release tags."
+            echo "has_tag=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           # If the workflow was triggered by a tag push, use it immediately
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
@@ -160,7 +178,11 @@ jobs:
           fi
 
           for attempt in {1..30}; do
-            git fetch --tags --force
+            if ! retry_fetch_tags; then
+              echo "::warning::Unable to refresh tags during wait (transient 5xx). Continuing without release tags."
+              echo "has_tag=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             TAG=$(git tag --points-at HEAD --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
             if [[ -n "$TAG" ]]; then
               VERSION=${TAG#v}

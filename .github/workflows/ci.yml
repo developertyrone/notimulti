@@ -1,8 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches: [ '00*' ]
+  # push:
+  #   branches: [ '00*' ]
   pull_request:
     branches: [ main ]
 
