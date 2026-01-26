@@ -37,6 +37,10 @@ func SetupRouter(registry *providers.Registry, logger *storage.NotificationLogge
 		v1.GET("/notifications/history", HandleGetNotificationHistory(repo))
 		v1.GET("/notifications/:id", HandleGetNotificationDetail(repo))
 
+		// API documentation (Swagger UI + OpenAPI spec)
+		v1.GET("/docs", HandleSwaggerDocs())
+		v1.GET("/openapi.yaml", HandleOpenAPISpec())
+
 		// Health check
 		v1.GET("/health", HandleHealthCheck())
 		v1.GET("/ready", HandleReadinessCheck(registry, repo))
@@ -48,6 +52,59 @@ func SetupRouter(registry *providers.Registry, logger *storage.NotificationLogge
 	}
 
 	return router
+}
+
+// HandleSwaggerDocs serves a minimal Swagger UI that points to /api/v1/openapi.yaml
+func HandleSwaggerDocs() gin.HandlerFunc {
+	// Use Swagger UI from CDN to avoid bundling assets
+	const swaggerHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>notimulti API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: '/api/v1/openapi.yaml',
+        dom_id: '#swagger-ui',
+        presets: [SwaggerUIBundle.presets.apis],
+      });
+    };
+  </script>
+</body>
+</html>`
+
+	return func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(swaggerHTML))
+	}
+}
+
+// HandleOpenAPISpec serves the OpenAPI YAML from disk with sensible defaults and fallback
+func HandleOpenAPISpec() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		specPath := os.Getenv("OPENAPI_SPEC_PATH")
+		if specPath == "" {
+			specPath = "/app/contracts/openapi.yaml"
+		}
+
+		data, err := os.ReadFile(specPath)
+		if err != nil {
+			// Fallback to repo path for local dev
+			fallback := filepath.Clean(filepath.Join("..", "specs", "002-enhanced-deployment", "contracts", "openapi.yaml"))
+			data, err = os.ReadFile(fallback)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "OpenAPI specification not found"})
+				return
+			}
+		}
+
+		c.Data(http.StatusOK, "application/x-yaml", data)
+	}
 }
 
 // ServeFrontend serves embedded frontend static files (T069)

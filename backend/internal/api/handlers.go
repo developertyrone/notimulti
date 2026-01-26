@@ -406,6 +406,42 @@ func HandleTestProvider(registry *providers.Registry, logger *storage.Notificati
 			"tested_at": testedAt.Format(time.RFC3339),
 		}
 
+		// Log test execution to history so UI can display it
+		recipient, recipientErr := provider.GetTestRecipient()
+		if recipientErr != nil {
+			recipient = "test-recipient-unavailable"
+		}
+
+		logStatus := storage.StatusSent
+		logError := ""
+		deliveredAt := testedAt.Format(time.RFC3339)
+
+		if testErr != nil {
+			logStatus = storage.StatusFailed
+			logError = testErr.Error()
+			deliveredAt = ""
+		}
+
+		if logger != nil {
+			logger.Log(storage.LogEntry{
+				Notification: &providers.Notification{
+					ID:         fmt.Sprintf("test-%s-%d", id, testedAt.Unix()),
+					ProviderID: id,
+					Recipient:  recipient,
+					Subject:    "Test from notimulti",
+					Message:    fmt.Sprintf("Test notification from notimulti server - %s", testedAt.UTC().Format("2006-01-02 15:04:05 MST")),
+					Priority:   providers.PriorityNormal,
+					Timestamp:  testedAt,
+				},
+				Status:       logStatus,
+				ErrorMessage: logError,
+				ProviderType: provider.GetType(),
+				Attempts:     1,
+				DeliveredAt:  deliveredAt,
+				IsTest:       true,
+			})
+		}
+
 		if testErr != nil {
 			// Test failed
 			response["result"] = "failed"
