@@ -56,8 +56,11 @@ WORKDIR /app
 COPY --from=backend-builder --chown=notimulti:notimulti /app/server .
 COPY --from=backend-builder --chown=notimulti:notimulti /app/cmd/server/dist ./cmd/server/dist
 
+# Copy OpenAPI spec for Swagger docs
+COPY --chown=notimulti:notimulti specs/002-enhanced-deployment/contracts/openapi.yaml /app/contracts/openapi.yaml
+
 # Create directories for runtime data with correct permissions
-RUN mkdir -p /app/data /app/configs
+RUN mkdir -p /app/data /app/configs /app/contracts
 
 # Copy entrypoint script and allow execution
 COPY deploy/entrypoint.sh /entrypoint.sh

@@ -8,6 +8,9 @@
 !README.md
 docs/
 specs/
+!specs/002-enhanced-deployment/
+!specs/002-enhanced-deployment/contracts/
+!specs/002-enhanced-deployment/contracts/openapi.yaml
 
 # Tests
 backend/tests/
